@@ -1,1058 +1,2184 @@
-# Automation Tool: The Complete Scripting Guide
+# Automation Tool for Unity: Professional n8n Integration
 
-A comprehensive, professional guide to mastering the Automation Tool and unlocking its full potential in your Unity projects.
+**A production-ready solution for connecting Unity games with n8n workflows, AI services, and external APIs.**
 
 ---
 
 ## Table of Contents
 
-1. [Understanding the System](#1-understanding-the-system)
-   - [System Architecture](#11-system-architecture)
-   - [The Singleton Pattern](#12-the-singleton-pattern)
-2. [Initialization and Setup](#2-initialization-and-setup)
-   - [Basic Setup (The Right Way)](#21-basic-setup-the-right-way)
-   - [Configuring AutomationConfig](#22-configuring-automationconfig)
-   - [A Note on Local n8n](#23-a-note-on-local-n8n)
-3. [Basic Data Sending](#3-basic-data-sending)
-   - [Fire-and-Forget Webhooks](#31-fire-and-forget-webhooks)
-   - [Sending Complex Unity Data](#32-sending-complex-unity-data)
-   - [Sending with Custom Headers](#33-sending-with-custom-headers)
-4. [Sending Files](#4-sending-files)
-   - [Sending Screenshots](#41-sending-screenshots)
-   - [Sending Multiple Files](#42-sending-multiple-files)
-   - [Understanding FileData](#43-understanding-filedata)
-5. [Workflows with Typed Responses](#5-workflows-with-typed-responses)
-   - [Basic Workflow with a Typed Response](#51-basic-workflow-with-a-typed-response)
-   - [Workflow with Complex Data](#52-workflow-with-complex-data)
-   - [Polling and Cancellation](#53-polling-and-cancellation)
-6. [Priority & Queue Management](#6-priority--queue-management)
-   - [The Priority System](#61-the-priority-system)
-   - [Managing the Offline Queue](#62-managing-the-offline-queue)
-   - [Custom Retry Policies](#63-custom-retry-policies)
-7. [Network Monitoring](#7-network-monitoring)
-   - [Connectivity Detection](#71-connectivity-detection)
-   - [Adapting to Network Type](#72-adapting-to-network-type)
-   - [Latency Monitoring](#73-latency-monitoring)
-8. [Unity Data Serialization](#8-unity-data-serialization)
-   - [Automatic GameObject Serialization](#81-automatic-gameobject-serialization)
-   - [Custom Mappers](#82-custom-mappers)
-   - [ScriptableObject Serialization](#83-scriptableobject-serialization)
-   - [Extension Methods for Quick Serialization](#84-extension-methods-for-quick-serialization)
-9. [Security and Encryption](#9-security-and-encryption)
-   - [Encrypting Sensitive Data](#91-encrypting-sensitive-data)
-   - [Request Signing (HMAC)](#92-request-signing-hmac)
-   - [Log Obfuscation](#93-log-obfuscation)
-   - [Secure Storage with PlayerPrefs](#94-secure-storage-with-playerprefs)
-10. [Advanced Patterns](#10-advanced-patterns)
-    - [Batch Sending](#101-batch-sending)
-    - [Debouncing and Throttling](#102-debouncing-and-throttling)
-    - [Circuit Breaker Pattern](#103-circuit-breaker-pattern)
-    - [Async/Await Pattern (with Callbacks)](#104-asyncawait-pattern-with-callbacks)
-    - [Event Aggregator Pattern](#105-event-aggregator-pattern)
-11. [Debugging and Troubleshooting](#11-debugging-and-troubleshooting)
-    - [The Checklist](#111-the-checklist)
-    - [Common Problems & Solutions](#112-common-problems--solutions)
+1. [What Makes This Different](#what-makes-this-different)
+2. [Architecture Overview](#architecture-overview)
+3. [Quick Start Guide](#quick-start-guide)
+4. [Core Features Deep Dive](#core-features-deep-dive)
+5. [Real-World Use Cases](#real-world-use-cases)
+6. [Advanced Patterns](#advanced-patterns)
+7. [AI Integration Examples](#ai-integration-examples)
+8. [Production Best Practices](#production-best-practices)
+9. [Troubleshooting](#troubleshooting)
+10. [API Reference](#api-reference)
 
 ---
 
-## 1. Understanding the System
+## What Makes This Different
 
-### 1.1 System Architecture
+This isn't just another HTTP wrapper. This is a complete automation ecosystem designed specifically for game developers.
 
-The Automation Tool is built on a modular architecture that separates concerns:
+### Enterprise-Grade Features Out of the Box
 
-```
-AutomationInitializer (Entry Point)
-├── AutomationClient (Core HTTP Client)
-├── N8nConnector (Specialized for n8n)
-├── RequestQueue (Offline Queue System)
-└── NetworkMonitor (Connectivity Monitoring)
-```
+- **Intelligent Retry System**: Exponential backoff with jitter prevents server overload
+- **Persistent Offline Queue**: Players never lose progress, even without internet
+- **Military-Grade Security**: AES-256 encryption, HMAC signing, automatic log obfuscation
+- **Network Adaptation**: Automatically adjusts data quality based on WiFi/Cellular
+- **Priority Management**: Critical events bypass queues for instant delivery
+- **Type-Safe Workflows**: Strongly-typed responses eliminate runtime errors
+- **Smart Compression**: Automatic GZIP for large payloads
+- **Mobile-First**: Battery monitoring, adaptive timeouts, data plan awareness
 
-**Key Components:**
+### Built for Game Development Reality
 
-- **AutomationClient**: Manages all HTTP requests with retry logic, tracking, and cancellation.
-- **N8nConnector**: A specialized layer for n8n providing easy access to webhooks and workflows.
-- **RequestQueue**: A persistence system that saves requests when there is no internet connection and sends them later.
-- **NetworkMonitor**: Detects connectivity changes and network type (WiFi/Cellular).
-
-### 1.2 The Singleton Pattern
-
-All core components use the Singleton Pattern for easy global access:
+Unlike generic HTTP libraries, this system understands games:
 
 ```csharp
-// Direct access to instances
-AutomationClient.Instance;
-N8nConnector.Instance;
-RequestQueue.Instance;
-NetworkMonitor.Instance;
+// Automatic Unity type serialization - no manual conversion needed
+var playerState = new {
+    position = player.transform.position,      // Vector3 -> JSON
+    rotation = player.transform.rotation,      // Quaternion -> Euler
+    color = GetComponent<Renderer>().material.color,  // Color -> Hex + RGBA
+    screenshot = ScreenCapture.CaptureScreenshotAsTexture()  // Texture2D -> PNG
+};
+
+// One line sends it all
+N8nConnector.Instance.ExecuteWebhook("player-state", playerState);
 ```
 
-> **⚠️ CRITICAL:** Never instantiate these components manually. The `AutomationInitializer` creates and initializes them automatically.
+### Perfect for n8n Workflows
+
+Native support for n8n's unique features:
+
+- **Wait Nodes**: Execute long-running workflows with automatic polling
+- **Webhook Validation**: HMAC signature verification built-in
+- **Execution Tracking**: Monitor workflow status in real-time
+- **Response Parsing**: Automatically extracts data from n8n's nested structure
+- **Multi-Node Results**: Access output from specific nodes in complex workflows
 
 ---
 
-## 2. Initialization and Setup
+## Architecture Overview
 
-### 2.1 Basic Setup (The Right Way)
+### The Singleton ScriptableObject Pattern
 
-**Step 1: Add the [AutomationManager] to your scene**
+A revolutionary approach that eliminates prefab dependencies:
 
-- Drag the `[AutomationManager]` prefab into your scene.
-- Assign your `AutomationConfig` asset to its "Config" field.
-- Done! The system initializes automatically on start.
+```
+AutomationManager.asset (ScriptableObject in Resources/)
+    |
+    v
+AutomationManager.Instance (Lazy-loaded Singleton)
+    |
+    v
+Creates Runtime GameObject with MonoBehaviours:
+    |-- AutomationClient (HTTP Engine)
+    |-- N8nConnector (n8n Specialist)
+    |-- RequestQueue (Offline Persistence)
+    +-- NetworkMonitor (Connectivity)
+```
 
-**Step 2: Wait for initialization in your scripts**
+**Why This Matters:**
 
-This is the most important step to prevent errors. Always wait for the system to be ready.
+- Zero Scene Setup: No prefabs to drag, no manual wiring
+- DontDestroyOnLoad: Survives scene transitions automatically
+- Asset-Based Configuration: Version control friendly, team-safe
+- Lazy Initialization: Only loads when first accessed
+
+### Component Responsibilities
+
+#### AutomationClient
+The core HTTP engine handling all network communication:
+- Request lifecycle management with retry logic
+- Response parsing and error handling
+- Request cancellation and timeout management
+- Performance metrics and analytics
+
+#### N8nConnector
+Specialized layer for n8n workflows:
+- Webhook execution (fire-and-forget)
+- Workflow execution with polling (request-response)
+- Webhook signature validation
+- n8n-specific response parsing
+
+#### RequestQueue
+Persistent offline queue system:
+- Automatic request queuing when offline
+- Priority-based queue management
+- Persistent storage across sessions
+- Auto-flush on connection restore
+
+#### NetworkMonitor
+Real-time connectivity tracking:
+- Connection state detection
+- Network type identification (WiFi/Cellular)
+- Latency measurement
+- Battery level monitoring (mobile)
+
+---
+
+## Quick Start Guide
+
+### Step 1: Create the Configuration Asset
+
+```
+Right-click in Project > Create > Automation Tool > Manager
+```
+
+This creates `AutomationManager.asset` - **move it to any `Resources` folder**.
+
+Then create your configuration:
+
+```
+Right-click in Project > Create > Automation Tool > Configuration
+```
+
+Configure your n8n instance:
+
+```csharp
+// Development Environment
+Base URL: http://localhost:5678
+Platform Type: n8n
+Timeout: 30 seconds
+
+// Production Environment  
+Base URL: https://your-n8n-instance.com
+Platform Type: n8n
+Timeout: 30 seconds
+API Key: (optional)
+```
+
+Assign the config to your `AutomationManager.asset` in the Inspector.
+
+### Step 2: Initialize in Your Game
+
+The simplest approach - wait for system ready:
 
 ```csharp
 using UnityEngine;
 using System.Collections;
-using AutomationTool.Examples; // For AutomationInitializer
+using AutomationTool;
 using AutomationTool.N8N;
 
-public class MyGameScript : MonoBehaviour
+public class GameController : MonoBehaviour
 {
     void Start()
     {
-        StartCoroutine(WaitForInitializationAndStart());
+        StartCoroutine(InitializeAutomation());
     }
 
-    private IEnumerator WaitForInitializationAndStart()
+    private IEnumerator InitializeAutomation()
     {
-        // Wait until the system is ready
+        // Wait for AutomationManager to initialize
         float timeout = 10f;
         float elapsed = 0f;
-        while (!AutomationInitializer.IsReady() && elapsed < timeout)
+        
+        while (!AutomationManager.Instance.IsReady && elapsed < timeout)
         {
             yield return new WaitForSeconds(0.1f);
             elapsed += 0.1f;
         }
 
-        // Verify it initialized correctly
-        if (!AutomationInitializer.IsReady())
+        if (!AutomationManager.Instance.IsReady)
         {
             Debug.LogError("Automation Tool failed to initialize!");
             yield break;
         }
 
-        Debug.Log("System ready!");
-        
-        // NOW you can use the connector
+        Debug.Log("Automation Tool ready!");
         OnSystemReady();
     }
 
     private void OnSystemReady()
     {
-        // Your code here
-        SendInitialData();
+        // Now you can safely use the connector
+        SendGameStarted();
+    }
+
+    private void SendGameStarted()
+    {
+        var gameData = new {
+            playerId = SystemInfo.deviceUniqueIdentifier,
+            platform = Application.platform.ToString(),
+            startedAt = System.DateTime.UtcNow.ToString("o")
+        };
+
+        AutomationManager.Instance.Connector.ExecuteWebhook(
+            "game-started", 
+            gameData, 
+            response => {
+                if (response.success)
+                    Debug.Log("Game start tracked!");
+            }
+        );
     }
 }
 ```
 
-### 2.2 Configuring AutomationConfig
+### Step 3: Configure n8n Webhook
 
-Create an `AutomationConfig` asset to store all your settings:
+In n8n, create a workflow with a Webhook node:
 
-1. Right-click in Project > **Create > Automation Tool > Configuration**.
-2. Configure your environments (Development, Staging, Production).
-3. Set the active environment.
+```
+Webhook Node Settings:
+- HTTP Method: POST
+- Path: game-started
+- Response Mode: Using 'Respond to Webhook' Node
+```
 
-### 2.3 A Note on Local n8n
-
-You don't need an expensive server to get started. You can run n8n directly on your own computer for development and testing.
-
-- **Installation**: You can install n8n via npm or Docker.
-- **Base URL**: When running locally, the default URL is `http://localhost:5678`.
-- **Unity Setup**: In your `AutomationConfig` asset, set the Base Url for your Development environment to `http://localhost:5678`. That's all you need to connect your Unity game to your local n8n instance.
+That's it. Your game is now connected to n8n.
 
 ---
 
-## 3. Basic Data Sending
+## Core Features Deep Dive
 
-### 3.1 Fire-and-Forget Webhooks
+### Fire-and-Forget Webhooks
 
-The most common use case: sending data without waiting for a complex response.
+The simplest pattern - send data without waiting for a response:
 
 ```csharp
-public void SendPlayerAction()
+public class PlayerAnalytics : MonoBehaviour
 {
-    // 1. Define the data using an anonymous object
-    var actionData = new
+    public void TrackLevelComplete(int level, int score, float time)
     {
-        playerId = "player_123",
-        action = "level_completed",
-        level = 5,
-        score = 1000,
-        timestamp = System.DateTime.UtcNow.ToString("o")
-    };
+        var data = new {
+            eventType = "level_complete",
+            level = level,
+            score = score,
+            completionTime = time,
+            timestamp = System.DateTime.UtcNow.ToString("o")
+        };
 
-    // 2. Send to the webhook endpoint
-    N8nConnector.Instance.ExecuteWebhook("player-actions", actionData, response =>
+        AutomationManager.Instance.Connector.ExecuteWebhook(
+            "game-events",
+            data,
+            response => {
+                // Optional callback
+                if (response.success)
+                    Debug.Log($"Event tracked: {response.latencyMs}ms");
+            }
+        );
+    }
+}
+```
+
+### Type-Safe Workflow Responses
+
+Execute workflows and receive strongly-typed responses:
+
+```csharp
+// Define your response structure
+[System.Serializable]
+public class DailyRewardResponse
+{
+    public int goldAmount;
+    public string itemId;
+    public string itemName;
+    public int itemQuantity;
+    public bool isSpecialReward;
+}
+
+public class RewardSystem : MonoBehaviour
+{
+    public void ClaimDailyReward()
     {
-        if (response.success)
+        var request = new {
+            playerId = GetPlayerId(),
+            lastLoginDate = GetLastLoginDate(),
+            consecutiveDays = GetConsecutiveDays()
+        };
+
+        // Execute workflow with typed response
+        AutomationManager.Instance.Connector.ExecuteWorkflow<DailyRewardResponse>(
+            workflowId: "daily-reward-generator",
+            inputData: request,
+            callback: OnRewardReceived,
+            timeoutSeconds: 60
+        );
+    }
+
+    private void OnRewardReceived(N8nConnector.WorkflowResult<DailyRewardResponse> result)
+    {
+        if (!result.success)
         {
-            Debug.Log("Action sent successfully!");
+            Debug.LogError($"Failed to get reward: {result.error}");
+            ShowError("Could not claim reward. Please try again.");
+            return;
+        }
+
+        // Strongly-typed data - no parsing needed!
+        var reward = result.data;
+        
+        Debug.Log($"Reward received: {reward.goldAmount} gold + {reward.itemName}");
+        
+        // Grant rewards to player
+        PlayerInventory.AddGold(reward.goldAmount);
+        PlayerInventory.AddItem(reward.itemId, reward.itemQuantity);
+        
+        if (reward.isSpecialReward)
+        {
+            ShowSpecialRewardAnimation(reward);
         }
         else
         {
-            Debug.LogError($"Error: {response.errorMessage}");
+            ShowStandardRewardPopup(reward);
         }
-    });
-}
-```
-
-### 3.2 Sending Complex Unity Data
-
-The system automatically serializes common Unity types.
-
-```csharp
-public class PlayerDataSender : MonoBehaviour
-{
-    public Transform player;
-    public Camera mainCamera;
-
-    public void SendPlayerState()
-    {
-        var playerState = new
-        {
-            // Position (Vector3 is automatically serialized)
-            position = player.position,
-            rotation = player.rotation,
-
-            // Camera data
-            cameraFOV = mainCamera.fieldOfView,
-            cameraPosition = mainCamera.transform.position,
-
-            // Other data
-            timestamp = System.DateTime.UtcNow.ToString("o"),
-            platform = Application.platform.ToString(),
-
-            // Arrays and collections work perfectly
-            recentActions = new[] { "jump", "run", "shoot" }
-        };
-
-        N8nConnector.Instance.ExecuteWebhook("player-state", playerState, response =>
-        {
-            Debug.Log(response.success ? "State sent!" : $"Error: {response.errorMessage}");
-        });
     }
 }
 ```
 
-### 3.3 Sending with Custom Headers
+### File Uploads with Metadata
 
-For APIs that require specific headers, construct a `RequestData` object.
-
-```csharp
-public void SendWithCustomHeaders()
-{
-    var data = new { message = "Test" };
-
-    var requestData = new RequestData("my-endpoint", data)
-    {
-        format = DataFormat.JSON,
-        priority = RequestPriority.Normal
-    };
-
-    // Add custom headers
-    requestData.headers["X-Custom-Token"] = "my-secret-token";
-    requestData.headers["X-Game-Version"] = Application.version;
-    requestData.headers["X-Session-ID"] = SystemInfo.deviceUniqueIdentifier;
-
-    AutomationClient.Instance.SendAsync(requestData, response =>
-    {
-        Debug.Log(response.success ? "Sent with headers!" : $"Error: {response.errorMessage}");
-    });
-}
-```
-
----
-
-## 4. Sending Files
-
-### 4.1 Sending Screenshots
+Send screenshots, logs, save files - anything:
 
 ```csharp
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 using AutomationTool.Core;
-using AutomationTool.N8N;
 
-public class ScreenshotSender : MonoBehaviour
+public class BugReporter : MonoBehaviour
 {
-    public void SendScreenshot()
+    public void ReportBug(string description, string severity)
     {
-        StartCoroutine(CaptureAndSend());
+        StartCoroutine(CaptureBugReport(description, severity));
     }
 
-    private IEnumerator CaptureAndSend()
+    private IEnumerator CaptureBugReport(string description, string severity)
     {
-        // Wait for the end of the frame to capture UI
+        // Wait for end of frame to capture UI
         yield return new WaitForEndOfFrame();
 
-        // 1. Capture the screenshot
+        // Capture screenshot
         Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
-
-        // 2. Create the FileData (automatic helper)
         var screenshotFile = FileData.FromTexture2D(
-            fieldName: "screenshot",  // The form field name
-            texture: screenshot,
-            fileName: $"screenshot_{System.DateTime.Now:yyyyMMdd_HHmmss}.png"
+            "screenshot",
+            screenshot,
+            $"bug_{System.DateTime.Now:yyyyMMddHHmmss}.png"
         );
 
-        // 3. Prepare additional metadata
-        var metadata = new
-        {
-            capturedAt = System.DateTime.UtcNow.ToString("o"),
-            resolution = $"{Screen.width}x{Screen.height}",
-            quality = QualitySettings.GetQualityLevel()
+        // Collect log file
+        string logContent = CollectRecentLogs();
+        byte[] logBytes = System.Text.Encoding.UTF8.GetBytes(logContent);
+        var logFile = new FileData(
+            "logfile",
+            logBytes,
+            "game_log.txt",
+            "text/plain"
+        );
+
+        // Prepare metadata
+        var bugData = new {
+            bugId = System.Guid.NewGuid().ToString(),
+            description = description,
+            severity = severity,
+            timestamp = System.DateTime.UtcNow.ToString("o"),
+            
+            // Automatic device info
+            device = new {
+                model = SystemInfo.deviceModel,
+                os = SystemInfo.operatingSystem,
+                memory = SystemInfo.systemMemorySize,
+                gpu = SystemInfo.graphicsDeviceName
+            },
+            
+            // Game state
+            gameState = new {
+                scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name,
+                playerPosition = player.transform.position,
+                currentLevel = GameManager.Instance.currentLevel
+            }
         };
 
-        // 4. Send with files
-        var files = new List<FileData> { screenshotFile };
+        // Send with files
+        var files = new List<FileData> { screenshotFile, logFile };
         
-        N8nConnector.Instance.ExecuteWebhookWithFiles(
-            "screenshots", 
-            metadata, 
-            files, 
-            response =>
-            {
+        AutomationManager.Instance.Connector.ExecuteWebhookWithFiles(
+            "bug-reports",
+            bugData,
+            files,
+            response => {
                 if (response.success)
                 {
-                    Debug.Log("Screenshot sent!");
+                    Debug.Log("Bug report sent successfully!");
+                    ShowSuccessNotification("Thank you for your report!");
                 }
                 else
                 {
-                    Debug.LogError($"Error: {response.errorMessage}");
+                    Debug.LogError($"Failed to send report: {response.errorMessage}");
+                    ShowErrorNotification("Could not send report. Please try again.");
                 }
             }
         );
 
-        // 5. Free up memory
+        // Cleanup
         Destroy(screenshot);
     }
-}
-```
 
-### 4.2 Sending Multiple Files
-
-You can attach multiple files like logs, save data, and screenshots in a single request.
-
-```csharp
-public void SendBugReportWithMultipleFiles()
-{
-    StartCoroutine(SendComplexBugReport());
-}
-
-private IEnumerator SendComplexBugReport()
-{
-    yield return new WaitForEndOfFrame();
-
-    var files = new List<FileData>();
-
-    // 1. Screenshot
-    Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
-    files.Add(FileData.FromTexture2D("screenshot", screenshot, "bug_screenshot.png"));
-
-    // 2. Log file (simulated)
-    string logContent = "Error log content here...";
-    byte[] logBytes = System.Text.Encoding.UTF8.GetBytes(logContent);
-    files.Add(new FileData("logfile", logBytes, "game_log.txt", "text/plain"));
-
-    // 3. Save file (simulated)
-    string saveData = PlayerPrefs.GetString("SaveData", "{}");
-    byte[] saveBytes = System.Text.Encoding.UTF8.GetBytes(saveData);
-    files.Add(new FileData("savefile", saveBytes, "save_data.json", "application/json"));
-
-    // 4. Bug metadata
-    var bugData = new
+    private string CollectRecentLogs()
     {
-        bugId = System.Guid.NewGuid().ToString(),
-        description = "Player fell through floor",
-        severity = "high",
-        timestamp = System.DateTime.UtcNow.ToString("o"),
-        deviceInfo = new
-        {
-            model = SystemInfo.deviceModel,
-            os = SystemInfo.operatingSystem,
-            memory = SystemInfo.systemMemorySize
-        }
-    };
-
-    // 5. Send everything
-    N8nConnector.Instance.ExecuteWebhookWithFiles("bug-reports", bugData, files, response =>
-    {
-        if (response.success)
-        {
-            Debug.Log("Complete bug report sent!");
-        }
-    });
-
-    // Cleanup
-    Destroy(screenshot);
-}
-```
-
-### 4.3 Understanding FileData
-
-For advanced cases, you can construct `FileData` manually.
-
-```csharp
-// Manual creation for advanced cases
-public FileData CreateCustomFile()
-{
-    // Example: Compress data before sending
-    string jsonData = JsonUtility.ToJson(myLargeObject);
-    byte[] compressedData = CompressData(jsonData); // Your compression logic
-
-    var fileData = new FileData(
-        fieldName: "compressed_data",
-        data: compressedData,
-        fileName: "data.json.gz",
-        mimeType: "application/gzip"
-    );
-
-    // Additional configuration
-    fileData.compress = false; // Already compressed
-
-    return fileData;
-}
-```
-
----
-
-## 5. Workflows with Typed Responses
-
-This is a powerful feature for bidirectional communication. Instead of just sending data, you wait for a structured response.
-
-### 5.1 Basic Workflow with a Typed Response
-
-```csharp
-// 1. Define the C# class that matches the n8n JSON output
-[System.Serializable]
-public class MissionData
-{
-    public string missionId;
-    public string missionName;
-    public string description;
-    public int rewardGold;
-    public string[] objectives;
-    public float timeLimit;
-}
-
-public class MissionSystem : MonoBehaviour
-{
-    public void RequestNewMission()
-    {
-        // 2. Prepare the input payload
-        var request = new
-        {
-            playerId = GetPlayerId(),
-            currentLevel = GetPlayerLevel(),
-            difficulty = "normal"
-        };
-
-        // 3. Execute the workflow with a generic type
-        N8nConnector.Instance.ExecuteWorkflow<MissionData>(
-            workflowId: "mission-generator",  // The workflow ID in n8n
-            inputData: request,
-            callback: OnMissionReceived,
-            timeoutSeconds: 60
-        );
-        Debug.Log("Requesting new mission...");
-    }
-
-    // 4. Process the strongly-typed response
-    private void OnMissionReceived(WorkflowResult<MissionData> result)
-    {
-        if (!result.success)
-        {
-            Debug.LogError($"Error receiving mission: {result.error}");
-            return;
-        }
-
-        // Direct access to typed properties! No more manual parsing.
-        MissionData mission = result.data;
-        
-        Debug.Log($"Mission received: {mission.missionName}");
-        Debug.Log($"Description: {mission.description}");
-        Debug.Log($"Reward: {mission.rewardGold} gold");
-
-        // Start the mission in your game
-        StartMission(mission);
+        // Implementation to collect Unity logs
+        return "Recent game logs...";
     }
 }
 ```
 
-### 5.2 Workflow with Complex Data
+### Priority-Based Request Management
 
-This pattern is perfect for AI, procedural generation, or any complex server-side logic.
-
-```csharp
-[System.Serializable]
-public class AIResponse
-{
-    public string dialogue;
-    public string emotion;
-}
-
-public class AIDialogueSystem : MonoBehaviour
-{
-    public void RequestAIResponse(string playerMessage)
-    {
-        var context = new
-        {
-            playerMessage,
-            npcPersonality = "friendly"
-        };
-
-        N8nConnector.Instance.ExecuteWorkflow<AIResponse>(
-            "ai-dialogue-generator",
-            context,
-            result =>
-            {
-                if (result.success && result.data != null)
-                {
-                    ShowDialogue(result.data.dialogue, result.data.emotion);
-                }
-            }
-        );
-    }
-}
-```
-
-### 5.3 Polling and Cancellation
-
-For long-running workflows, you can manage the process.
+Not all data is equal. Critical events bypass queues:
 
 ```csharp
-public class LongRunningWorkflow : MonoBehaviour
+using AutomationTool.Core;
+
+public class EventPriority : MonoBehaviour
 {
-    private string currentExecutionId;
-
-    public void StartLongWorkflow()
+    // CRITICAL: Must be sent immediately, will retry 10 times
+    public void SendCriticalAlert(string alertType, string message)
     {
-        var data = new { /* ... */ };
-        
-        N8nConnector.Instance.ExecuteWorkflow<MyResponse>(
-            "long-processing-workflow",
-            data,
-            result =>
-            {
-                currentExecutionId = result.executionId;
-                if (result.success) { Debug.Log("Workflow completed!"); }
-                else { Debug.LogError($"Workflow failed: {result.error}"); }
-                currentExecutionId = null; 
-            },
-            timeoutSeconds: 300
-        );
-    }
-
-    public void CancelWorkflow()
-    {
-        if (!string.IsNullOrEmpty(currentExecutionId))
-        {
-            bool cancelled = N8nConnector.Instance.CancelExecution(currentExecutionId);
-            Debug.Log(cancelled ? "Workflow polling cancelled" : "Could not cancel");
-        }
-    }
-}
-```
-
----
-
-## 6. Priority & Queue Management
-
-### 6.1 The Priority System
-
-Not all data is equal. Use priorities to ensure critical data is sent first.
-
-```csharp
-public class PrioritySystem : MonoBehaviour
-{
-    public void SendCriticalAlert()
-    {
-        var request = new RequestData("critical-alerts", new { type = "player_died" })
+        var request = new RequestData("critical-alerts", new {
+            type = alertType,
+            message = message,
+            timestamp = System.DateTime.UtcNow.ToString("o")
+        })
         {
             priority = RequestPriority.Critical,
-            maxRetries = 10
+            maxRetries = 10,
+            timeoutSeconds = 60
         };
-        AutomationClient.Instance.SendAsync(request);
+
+        AutomationManager.Instance.Client.SendAsync(request, response => {
+            if (response.success)
+                Debug.Log("Critical alert sent!");
+        });
     }
 
-    public void SendHighPriorityEvent()
+    // HIGH: Important but not critical
+    public void SendAchievementUnlocked(string achievementId)
     {
-        AutomationClient.Instance.SendHighPriority("achievements", new { type = "unlocked" });
+        var request = new RequestData("achievements", new {
+            achievementId = achievementId,
+            unlockedAt = System.DateTime.UtcNow.ToString("o")
+        })
+        {
+            priority = RequestPriority.High,
+            maxRetries = 5
+        };
+
+        AutomationManager.Instance.Client.SendAsync(request);
     }
 
-    public void SendLowPriorityAnalytics()
+    // NORMAL: Standard game events
+    public void SendGameEvent(string eventType, object data)
     {
-        var request = new RequestData("analytics", new { sessionTime = 3600 })
+        var request = new RequestData("game-events", new {
+            eventType = eventType,
+            data = data
+        })
+        {
+            priority = RequestPriority.Normal,
+            maxRetries = 3
+        };
+
+        AutomationManager.Instance.Client.SendAsync(request);
+    }
+
+    // LOW: Analytics, non-critical telemetry
+    public void SendAnalytics(string category, object metrics)
+    {
+        var request = new RequestData("analytics", new {
+            category = category,
+            metrics = metrics
+        })
         {
             priority = RequestPriority.Low,
-            maxRetries = 1
+            maxRetries = 1 // Don't retry analytics if it fails
         };
-        AutomationClient.Instance.SendAsync(request);
+
+        AutomationManager.Instance.Client.SendAsync(request);
     }
 }
 ```
 
-### 6.2 Managing the Offline Queue
+### Network-Adaptive Behavior
 
-The queue automatically stores requests when offline. You can also interact with it directly.
-
-```csharp
-using AutomationTool.Queue;
-
-public class QueueManager : MonoBehaviour
-{
-    void Start()
-    {
-        StartCoroutine(WaitAndSetup());
-    }
-
-    private IEnumerator WaitAndSetup()
-    {
-        while (!AutomationInitializer.IsReady()) yield return new WaitForSeconds(0.1f);
-        
-        var queue = RequestQueue.Instance;
-        queue.OnRequestEnqueued += (req) => Debug.Log($"Request queued: {req.request.endpoint}");
-        queue.OnQueueFlushed += () => Debug.Log("Queue flushed successfully!");
-    }
-}
-```
-
-### 6.3 Custom Retry Policies
-
-*(This section would be expanded with specific retry policy examples if available in the original documentation)*
-
----
-
-## 7. Network Monitoring
-
-Adapt your game's behavior based on the network state.
-
-### 7.1 Connectivity Detection
+Automatically adapt to network conditions:
 
 ```csharp
 using AutomationTool.Networking;
 
-public class NetworkAwareSystem : MonoBehaviour
+public class AdaptiveUploader : MonoBehaviour
 {
-    void Start()
+    public void UploadGameReplay()
     {
-        StartCoroutine(WaitAndSetup());
+        StartCoroutine(UploadAdaptive());
     }
 
-    private IEnumerator WaitAndSetup()
+    private IEnumerator UploadAdaptive()
     {
-        while (!AutomationInitializer.IsReady()) yield return new WaitForSeconds(0.1f);
-        
-        var networkMonitor = NetworkMonitor.Instance;
-        networkMonitor.OnConnectionRestored += () => Debug.Log("Connection restored!");
-        networkMonitor.OnConnectionLost += () => Debug.LogWarning("Connection lost!");
-        networkMonitor.OnNetworkTypeChanged += (type) => Debug.Log($"Network changed to: {type}");
-    }
-}
-```
+        var monitor = AutomationManager.Instance.Monitor;
 
-### 7.2 Adapting to Network Type
+        // Check if we should wait for better connection
+        if (monitor.CurrentNetworkType == NetworkType.None)
+        {
+            Debug.Log("No connection - queueing for later");
+            QueueForLater();
+            yield break;
+        }
 
-Save your players' data plans by adjusting quality based on the network.
+        // Check battery on mobile
+        if (Application.isMobilePlatform && monitor.IsLowBattery)
+        {
+            Debug.Log("Low battery - deferring upload");
+            QueueForLater();
+            yield break;
+        }
 
-```csharp
-public class AdaptiveDataSender : MonoBehaviour
-{
-    public void SendScreenshotAdaptive()
-    {
-        StartCoroutine(SendAdaptiveScreenshot());
-    }
+        // Adjust quality based on network
+        int videoQuality;
+        bool compressData;
 
-    private IEnumerator SendAdaptiveScreenshot()
-    {
+        switch (monitor.CurrentNetworkType)
+        {
+            case NetworkType.WiFi:
+                videoQuality = 90; // High quality
+                compressData = false;
+                Debug.Log("WiFi detected - uploading high quality");
+                break;
+
+            case NetworkType.Cellular:
+                videoQuality = 60; // Lower quality to save data
+                compressData = true;
+                Debug.Log("Cellular detected - uploading compressed");
+                break;
+
+            default:
+                videoQuality = 75;
+                compressData = false;
+                break;
+        }
+
+        // Capture and upload
         yield return new WaitForEndOfFrame();
-        Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
+        byte[] replayData = CaptureReplay(videoQuality);
         
-        int quality = (NetworkMonitor.Instance.CurrentNetworkType == NetworkType.WiFi) ? 90 : 60;
-        byte[] imageData = screenshot.EncodeToJPG(quality);
-        var fileData = new FileData("screenshot", imageData, "screenshot.jpg", "image/jpeg");
-        
-        N8nConnector.Instance.ExecuteWebhookWithFiles("adaptive-screenshot", new { quality }, new List<FileData>{fileData});
-        Destroy(screenshot);
-    }
-}
-```
-
-### 7.3 Latency Monitoring
-
-*(This section would be expanded with latency monitoring examples if available in the original documentation)*
-
----
-
-## 8. Unity Data Serialization
-
-### 8.1 Automatic GameObject Serialization
-
-```csharp
-using AutomationTool.N8N;
-
-public class GameObjectSerializer : MonoBehaviour
-{
-    public GameObject player;
-
-    public void SendPlayerData()
-    {
-        var playerData = N8nDataMapper.MapGameObject(player, includeComponents: true, includeChildren: false);
-        N8nConnector.Instance.ExecuteWebhook("player-state", playerData);
-    }
-}
-```
-
-### 8.2 Custom Mappers
-
-Register custom functions to control exactly how your C# classes and components are serialized.
-
-```csharp
-using AutomationTool.N8N;
-
-public class CustomMappers : MonoBehaviour
-{
-    void Start()
-    {
-        // Mapper for a custom class
-        N8nDataMapper.RegisterMapper<PlayerStats>(stats => new
+        if (compressData)
         {
-            stats.playerId,
-            stats.level
-        });
+            replayData = CompressData(replayData);
+        }
 
-        // Mapper for a custom component
-        N8nDataMapper.RegisterComponentMapper<HealthComponent>(health => new
-        {
-            health.currentHealth,
-            health.maxHealth
-        });
-    }
-}
-```
+        var fileData = new FileData(
+            "replay",
+            replayData,
+            "replay.mp4",
+            "video/mp4"
+        );
 
-### 8.3 ScriptableObject Serialization
-
-*(This section would be expanded with ScriptableObject serialization examples if available in the original documentation)*
-
-### 8.4 Extension Methods for Quick Serialization
-
-Use convenient extension methods for clean and readable code.
-
-```csharp
-using AutomationTool.N8N;
-
-public class QuickSerializationExample : MonoBehaviour
-{
-    public Transform target;
-
-    public void SendWithExtensions()
-    {
-        var data = new
-        {
-            targetPosition = target.position.ToN8nData()
-        };
-        N8nConnector.Instance.ExecuteWebhook("quick-data", data);
-    }
-}
-```
-
----
-
-## 9. Security and Encryption
-
-### 9.1 Encrypting Sensitive Data
-
-Use built-in helpers to encrypt data before sending it over the network.
-
-```csharp
-using AutomationTool.Security;
-
-public class SecureDataSender : MonoBehaviour
-{
-    public void SendSensitiveData()
-    {
-        string apiKey = "sk_live_123456789";
-
-        // Encrypt using the .Encrypt() extension method
-        var secureData = new
-        {
-            apiKey = apiKey.Encrypt()
+        var metadata = new {
+            quality = videoQuality,
+            compressed = compressData,
+            networkType = monitor.CurrentNetworkType.ToString(),
+            uploadedAt = System.DateTime.UtcNow.ToString("o")
         };
 
-        N8nConnector.Instance.ExecuteWebhook("payment-process", secureData);
+        AutomationManager.Instance.Connector.ExecuteWebhookWithFiles(
+            "replay-upload",
+            metadata,
+            new List<FileData> { fileData }
+        );
     }
 }
 ```
 
-### 9.2 Request Signing (HMAC)
+### Persistent Offline Queue
 
-*(This section would be expanded with HMAC signing examples if available in the original documentation)*
-
-### 9.3 Log Obfuscation
-
-The system can automatically obfuscate sensitive data like API keys, passwords, and emails in your Unity console logs to prevent accidental exposure. This is enabled by default in the `AutomationConfig`.
-
-### 9.4 Secure Storage with PlayerPrefs
-
-Store sensitive information on the user's device securely.
+Requests are automatically queued when offline and sent when connection restores:
 
 ```csharp
-using AutomationTool.Security;
+using AutomationTool.Queue;
 
-public class SecureStorage : MonoBehaviour
+public class QueueMonitor : MonoBehaviour
 {
-    public void SaveSecureData()
+    private void Start()
     {
-        string apiKey = "sk_live_123456789";
-        SecurityManager.SaveEncryptedPlayerPref("api_key", apiKey);
+        StartCoroutine(SetupQueue());
     }
 
-    public void LoadSecureData()
+    private IEnumerator SetupQueue()
     {
-        // Loads and decrypts automatically
-        string apiKey = SecurityManager.LoadEncryptedPlayerPref("api_key", "");
+        // Wait for initialization
+        while (!AutomationManager.Instance.IsReady)
+            yield return new WaitForSeconds(0.1f);
+
+        var queue = AutomationManager.Instance.Queue;
+
+        // Subscribe to queue events
+        queue.OnRequestEnqueued += (request) => {
+            Debug.Log($"Request queued: {request.request.endpoint}");
+            UpdateQueueUI(queue.Count);
+        };
+
+        queue.OnRequestDequeued += (request) => {
+            Debug.Log($"Request sent: {request.request.endpoint}");
+            UpdateQueueUI(queue.Count);
+        };
+
+        queue.OnQueueFlushed += () => {
+            Debug.Log("All queued requests sent!");
+            ShowNotification("Sync complete");
+        };
+
+        queue.OnRequestDropped += (request) => {
+            Debug.LogWarning($"Request dropped: {request.request.endpoint}");
+        };
+
+        // Check current queue status
+        if (queue.Count > 0)
+        {
+            Debug.Log($"Found {queue.Count} pending requests from previous session");
+        }
+    }
+
+    // Manual queue management
+    public void FlushQueueManually()
+    {
+        var queue = AutomationManager.Instance.Queue;
+        
+        if (queue.Count > 0)
+        {
+            Debug.Log($"Manually flushing {queue.Count} requests...");
+            queue.FlushQueue();
+        }
+        else
+        {
+            Debug.Log("Queue is empty");
+        }
+    }
+
+    public void ClearQueue()
+    {
+        var queue = AutomationManager.Instance.Queue;
+        
+        if (queue.Count > 0)
+        {
+            Debug.Log($"Clearing {queue.Count} pending requests");
+            queue.Clear();
+        }
+    }
+
+    public string GetQueueStatus()
+    {
+        var queue = AutomationManager.Instance.Queue;
+        var stats = queue.GetStats();
+        
+        return $"Queue: {stats.currentSize} pending, " +
+               $"{stats.totalEnqueued} total enqueued, " +
+               $"{stats.totalDequeued} sent, " +
+               $"{stats.totalDropped} dropped";
     }
 }
 ```
 
 ---
 
-## 10. Advanced Patterns
+## Real-World Use Cases
 
-### 10.1 Batch Sending
+### Live Operations Dashboard
 
-Group multiple small events into a single request to reduce network traffic.
+Send real-time player metrics to n8n for monitoring:
 
 ```csharp
-public class BatchSender : MonoBehaviour
+public class LiveOpsDashboard : MonoBehaviour
+{
+    private void Start()
+    {
+        InvokeRepeating("SendLiveMetrics", 60f, 60f); // Every 60 seconds
+    }
+
+    private void SendLiveMetrics()
+    {
+        var metrics = new {
+            timestamp = System.DateTime.UtcNow.ToString("o"),
+            
+            // Player stats
+            activePlayers = GetActivePlayerCount(),
+            newPlayers = GetNewPlayerCount(),
+            
+            // Performance
+            avgFPS = GetAverageFPS(),
+            avgLoadTime = GetAverageLoadTime(),
+            crashRate = GetCrashRate(),
+            
+            // Economy
+            dailyRevenue = GetDailyRevenue(),
+            avgSessionLength = GetAverageSessionLength(),
+            
+            // Engagement
+            levelsCompleted = GetLevelsCompletedToday(),
+            achievementsUnlocked = GetAchievementsUnlockedToday()
+        };
+
+        AutomationManager.Instance.Connector.ExecuteWebhook("live-metrics", metrics);
+    }
+}
+```
+
+### Player Behavior Analysis
+
+Track complex player journeys:
+
+```csharp
+public class BehaviorTracker : MonoBehaviour
+{
+    private List<PlayerAction> sessionActions = new List<PlayerAction>();
+    private System.DateTime sessionStart;
+
+    private void Start()
+    {
+        sessionStart = System.DateTime.UtcNow;
+    }
+
+    public void TrackAction(string actionType, object metadata = null)
+    {
+        sessionActions.Add(new PlayerAction {
+            type = actionType,
+            timestamp = System.DateTime.UtcNow,
+            metadata = metadata
+        });
+    }
+
+    private void OnApplicationQuit()
+    {
+        // Send complete session data
+        var sessionData = new {
+            sessionId = System.Guid.NewGuid().ToString(),
+            playerId = GetPlayerId(),
+            startTime = sessionStart.ToString("o"),
+            endTime = System.DateTime.UtcNow.ToString("o"),
+            duration = (System.DateTime.UtcNow - sessionStart).TotalSeconds,
+            actions = sessionActions,
+            
+            // Session summary
+            levelsPlayed = sessionActions.Count(a => a.type == "level_start"),
+            itemsPurchased = sessionActions.Count(a => a.type == "purchase"),
+            socialInteractions = sessionActions.Count(a => a.type.StartsWith("social_"))
+        };
+
+        AutomationManager.Instance.Connector.ExecuteWebhook("session-complete", sessionData);
+    }
+}
+
+[System.Serializable]
+public class PlayerAction
+{
+    public string type;
+    public System.DateTime timestamp;
+    public object metadata;
+}
+```
+
+### Dynamic Content Generation
+
+Generate procedural content using n8n workflows:
+
+```csharp
+[System.Serializable]
+public class GeneratedLevel
+{
+    public string levelId;
+    public int difficulty;
+    public string theme;
+    public Vector3[] enemySpawnPoints;
+    public Vector3[] itemLocations;
+    public string[] obstacles;
+}
+
+public class ProceduralLevelGenerator : MonoBehaviour
+{
+    public void GenerateLevel(int playerLevel, string preferredTheme)
+    {
+        var request = new {
+            playerId = GetPlayerId(),
+            playerLevel = playerLevel,
+            preferredTheme = preferredTheme,
+            previousLevels = GetCompletedLevels(),
+            playerSkillRating = GetSkillRating()
+        };
+
+        AutomationManager.Instance.Connector.ExecuteWorkflow<GeneratedLevel>(
+            "level-generator",
+            request,
+            result => {
+                if (result.success && result.data != null)
+                {
+                    BuildLevel(result.data);
+                }
+            },
+            timeoutSeconds: 120 // Generation might take time
+        );
+    }
+
+    private void BuildLevel(GeneratedLevel levelData)
+    {
+        Debug.Log($"Building level: {levelData.levelId}");
+        Debug.Log($"Theme: {levelData.theme}, Difficulty: {levelData.difficulty}");
+        
+        // Spawn enemies
+        foreach (var point in levelData.enemySpawnPoints)
+        {
+            SpawnEnemy(point);
+        }
+        
+        // Place items
+        foreach (var point in levelData.itemLocations)
+        {
+            PlaceItem(point);
+        }
+        
+        // Generate obstacles
+        foreach (var obstacle in levelData.obstacles)
+        {
+            PlaceObstacle(obstacle);
+        }
+    }
+}
+```
+
+### Multiplayer Matchmaking
+
+Use n8n as a matchmaking backend:
+
+```csharp
+[System.Serializable]
+public class MatchResult
+{
+    public string matchId;
+    public string serverId;
+    public string[] playerIds;
+    public int averageSkillRating;
+    public string gameMode;
+}
+
+public class MatchmakingSystem : MonoBehaviour
+{
+    public void FindMatch(string gameMode, int skillRating)
+    {
+        ShowMatchmakingUI("Searching for match...");
+
+        var request = new {
+            playerId = GetPlayerId(),
+            gameMode = gameMode,
+            skillRating = skillRating,
+            region = GetPlayerRegion(),
+            timestamp = System.DateTime.UtcNow.ToString("o")
+        };
+
+        AutomationManager.Instance.Connector.ExecuteWorkflow<MatchResult>(
+            "matchmaking",
+            request,
+            OnMatchFound,
+            timeoutSeconds: 180 // 3 minutes max
+        );
+    }
+
+    private void OnMatchFound(N8nConnector.WorkflowResult<MatchResult> result)
+    {
+        if (!result.success)
+        {
+            Debug.LogError($"Matchmaking failed: {result.error}");
+            ShowMatchmakingError("Could not find match. Please try again.");
+            return;
+        }
+
+        var match = result.data;
+        
+        Debug.Log($"Match found! ID: {match.matchId}");
+        Debug.Log($"Server: {match.serverId}");
+        Debug.Log($"Players: {string.Join(", ", match.playerIds)}");
+        
+        ConnectToGameServer(match.serverId, match.matchId);
+    }
+}
+```
+
+### Anti-Cheat Reporting
+
+Send suspicious behavior for analysis:
+
+```csharp
+public class AntiCheatMonitor : MonoBehaviour
+{
+    private Dictionary<string, int> suspicionScores = new Dictionary<string, int>();
+
+    public void ReportSuspiciousActivity(string activityType, object evidence)
+    {
+        // Increment suspicion
+        if (!suspicionScores.ContainsKey(activityType))
+            suspicionScores[activityType] = 0;
+        
+        suspicionScores[activityType]++;
+
+        // Report if threshold exceeded
+        if (suspicionScores[activityType] >= 3)
+        {
+            var report = new {
+                playerId = GetPlayerId(),
+                activityType = activityType,
+                occurrences = suspicionScores[activityType],
+                evidence = evidence,
+                timestamp = System.DateTime.UtcNow.ToString("o"),
+                
+                // Device fingerprint
+                device = new {
+                    uniqueId = SystemInfo.deviceUniqueIdentifier,
+                    model = SystemInfo.deviceModel,
+                    os = SystemInfo.operatingSystem
+                },
+                
+                // Game state
+                gameState = new {
+                    level = GameManager.Instance.currentLevel,
+                    playTime = GameManager.Instance.totalPlayTime,
+                    achievements = PlayerProfile.GetAchievementCount()
+                }
+            };
+
+            // Send as high priority
+            var request = new RequestData("anti-cheat-reports", report)
+            {
+                priority = RequestPriority.High,
+                maxRetries = 5
+            };
+
+            AutomationManager.Instance.Client.SendAsync(request, response => {
+                if (response.success)
+                {
+                    Debug.Log("Anti-cheat report sent");
+                }
+            });
+        }
+    }
+}
+```
+
+---
+
+## Advanced Patterns
+
+### Batch Processing for High-Frequency Events
+
+Reduce network overhead by batching small events:
+
+```csharp
+public class EventBatcher : MonoBehaviour
 {
     private List<object> eventBatch = new List<object>();
     private const int BATCH_SIZE = 10;
+    private const float MAX_BATCH_AGE = 30f; // seconds
+    private float lastBatchTime;
+
+    private void Start()
+    {
+        lastBatchTime = Time.time;
+    }
 
     public void LogEvent(string eventType, object data)
     {
-        eventBatch.Add(new { eventType, data });
-        if (eventBatch.Count >= BATCH_SIZE) FlushBatch();
+        eventBatch.Add(new {
+            type = eventType,
+            data = data,
+            timestamp = System.DateTime.UtcNow.ToString("o")
+        });
+
+        // Flush if batch is full or old
+        if (eventBatch.Count >= BATCH_SIZE || 
+            Time.time - lastBatchTime >= MAX_BATCH_AGE)
+        {
+            FlushBatch();
+        }
     }
 
     private void FlushBatch()
     {
         if (eventBatch.Count == 0) return;
-        N8nConnector.Instance.ExecuteWebhook("event-batch", new { events = eventBatch.ToArray() });
+
+        var batch = new {
+            batchId = System.Guid.NewGuid().ToString(),
+            events = eventBatch.ToArray(),
+            batchSize = eventBatch.Count,
+            flushedAt = System.DateTime.UtcNow.ToString("o")
+        };
+
+        AutomationManager.Instance.Connector.ExecuteWebhook("event-batch", batch);
+        
         eventBatch.Clear();
+        lastBatchTime = Time.time;
+    }
+
+    private void OnApplicationQuit()
+    {
+        FlushBatch(); // Ensure we don't lose events
     }
 }
 ```
 
-### 10.2 Debouncing and Throttling
+### Rate Limiting and Throttling
 
-Control the rate of your API calls to avoid spamming your server.
+Control API call frequency:
 
 ```csharp
-public class RateLimitedSender : MonoBehaviour
+public class RateLimiter : MonoBehaviour
 {
-    // Debounce: Only sends after a period of inactivity
+    // Debounce: Only sends after inactivity period
     private Coroutine debounceCoroutine;
 
-    public void SendWithDebounce(object data)
+    public void SendWithDebounce(string endpoint, object data, float delaySeconds = 0.5f)
     {
-        if (debounceCoroutine != null) StopCoroutine(debounceCoroutine);
-        debounceCoroutine = StartCoroutine(DebounceCoroutine(data));
+        if (debounceCoroutine != null)
+            StopCoroutine(debounceCoroutine);
+        
+        debounceCoroutine = StartCoroutine(DebounceCoroutine(endpoint, data, delaySeconds));
     }
 
-    private IEnumerator DebounceCoroutine(object data)
+    private IEnumerator DebounceCoroutine(string endpoint, object data, float delay)
     {
-        yield return new WaitForSeconds(0.5f);
-        N8nConnector.Instance.ExecuteWebhook("debounced-data", data);
+        yield return new WaitForSeconds(delay);
+        AutomationManager.Instance.Connector.ExecuteWebhook(endpoint, data);
     }
 
-    // Throttle: Limits sends to one every X seconds
-    private float lastThrottleTime = 0f;
+    // Throttle: Maximum one call per interval
+    private Dictionary<string, float> lastCallTimes = new Dictionary<string, float>();
 
-    public void SendWithThrottle(object data)
+    public void SendWithThrottle(string endpoint, object data, float intervalSeconds = 1f)
     {
-        if (Time.time - lastThrottleTime >= 1f)
+        if (!lastCallTimes.ContainsKey(endpoint))
+            lastCallTimes[endpoint] = 0f;
+
+        if (Time.time - lastCallTimes[endpoint] >= intervalSeconds)
         {
-            N8nConnector.Instance.ExecuteWebhook("throttled-data", data);
-            lastThrottleTime = Time.time;
+            AutomationManager.Instance.Connector.ExecuteWebhook(endpoint, data);
+            lastCallTimes[endpoint] = Time.time;
+        }
+        else
+        {
+            Debug.Log($"Throttled call to {endpoint}");
         }
     }
 }
 ```
 
-### 10.3 Circuit Breaker Pattern
+### Async/Await Pattern with Tasks
 
-*(This section would be expanded with circuit breaker examples if available in the original documentation)*
-
-### 10.4 Async/Await Pattern (with Callbacks)
-
-Use async/await for cleaner, more modern asynchronous code by wrapping the callback-based methods.
-
+Modern asynchronous programming:
 ```csharp
 using System.Threading.Tasks;
 
 public class AsyncPatterns : MonoBehaviour
 {
-    private Task<WorkflowResult<T>> ExecuteWorkflowAsync<T>(string id, object data) where T : class
+    // Wrapper to convert callback to Task
+    private Task<N8nConnector.WorkflowResult<T>> ExecuteWorkflowAsync<T>(
+        string workflowId, 
+        object data
+    ) where T : class
     {
-        var tcs = new TaskCompletionSource<WorkflowResult<T>>();
-        N8nConnector.Instance.ExecuteWorkflow<T>(id, data, tcs.SetResult);
+        var tcs = new TaskCompletionSource<N8nConnector.WorkflowResult<T>>();
+        
+        AutomationManager.Instance.Connector.ExecuteWorkflow<T>(
+            workflowId,
+            data,
+            result => tcs.SetResult(result)
+        );
+        
         return tcs.Task;
     }
 
+    // Execute multiple workflows in parallel
     public async void ProcessMultipleWorkflows()
     {
         try
         {
-            var task1 = ExecuteWorkflowAsync<MissionData>("mission-gen", new { level = 1 });
-            var task2 = ExecuteWorkflowAsync<RewardData>("reward-calc", new { score = 1000 });
-            
-            await Task.WhenAll(task1, task2);
+            Debug.Log("Starting parallel workflows...");
 
-            if (task1.Result.success) Debug.Log($"Mission: {task1.Result.data.missionName}");
-            if (task2.Result.success) Debug.Log($"Reward: {task2.Result.data.goldAmount} gold");
+            // Start both workflows simultaneously
+            var missionTask = ExecuteWorkflowAsync<MissionData>(
+                "mission-generator",
+                new { difficulty = "hard" }
+            );
+            
+            var rewardTask = ExecuteWorkflowAsync<RewardData>(
+                "reward-calculator",
+                new { score = 1000 }
+            );
+
+            // Wait for both to complete
+            await Task.WhenAll(missionTask, rewardTask);
+
+            // Process results
+            if (missionTask.Result.success && rewardTask.Result.success)
+            {
+                Debug.Log($"Mission: {missionTask.Result.data.missionName}");
+                Debug.Log($"Reward: {rewardTask.Result.data.goldAmount} gold");
+                
+                // Apply results to game
+                ApplyMission(missionTask.Result.data);
+                ApplyReward(rewardTask.Result.data);
+            }
+            else
+            {
+                Debug.LogError("One or more workflows failed");
+            }
         }
         catch (System.Exception ex)
         {
-            Debug.LogError($"An error occurred: {ex.Message}");
+            Debug.LogError($"Workflow execution error: {ex.Message}");
+        }
+    }
+
+    // Sequential async execution with error handling
+    public async void ProcessWorkflowChain()
+    {
+        try
+        {
+            // Step 1: Validate player
+            Debug.Log("Step 1: Validating player...");
+            var validationResult = await ExecuteWorkflowAsync<ValidationResponse>(
+                "player-validation",
+                new { playerId = GetPlayerId() }
+            );
+
+            if (!validationResult.success || !validationResult.data.isValid)
+            {
+                Debug.LogError("Player validation failed");
+                return;
+            }
+
+            // Step 2: Generate content based on validation
+            Debug.Log("Step 2: Generating content...");
+            var contentResult = await ExecuteWorkflowAsync<ContentData>(
+                "content-generator",
+                new { 
+                    playerId = GetPlayerId(),
+                    playerTier = validationResult.data.tier 
+                }
+            );
+
+            if (!contentResult.success)
+            {
+                Debug.LogError("Content generation failed");
+                return;
+            }
+
+            // Step 3: Apply generated content
+            Debug.Log("Step 3: Applying content...");
+            ApplyGeneratedContent(contentResult.data);
+            
+            Debug.Log("Workflow chain completed successfully!");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"Workflow chain failed: {ex.Message}");
         }
     }
 }
+
+[System.Serializable]
+public class MissionData
+{
+    public string missionName;
+    public int difficulty;
+}
+
+[System.Serializable]
+public class RewardData
+{
+    public int goldAmount;
+    public string itemId;
+}
+
+[System.Serializable]
+public class ValidationResponse
+{
+    public bool isValid;
+    public string tier;
+}
+
+[System.Serializable]
+public class ContentData
+{
+    public string contentId;
+    public string contentType;
+}
 ```
 
-### 10.5 Event Aggregator Pattern
+### Retry with Exponential Backoff
 
-This pattern decouples event publishers from subscribers. Instead of direct calls, components publish events to a central hub, and other components subscribe to the events they care about. This is excellent for complex systems.
-
+Custom retry logic for critical operations:
 ```csharp
-// The central Event Aggregator
-public class EventAggregator
-{
-    public static readonly EventAggregator Instance = new EventAggregator();
-    private readonly Dictionary<System.Type, List<System.Action<object>>> _handlers = new Dictionary<System.Type, List<System.Action<object>>>();
+using System.Collections;
 
-    public void Subscribe<T>(System.Action<T> handler) where T : class
+public class RetryHandler : MonoBehaviour
+{
+    public void SendWithCustomRetry(string endpoint, object data, int maxAttempts = 5)
     {
-        if (!_handlers.ContainsKey(typeof(T)))
-            _handlers[typeof(T)] = new List<System.Action<object>>();
-        _handlers[typeof(T)].Add((obj) => handler(obj as T));
+        StartCoroutine(RetryCoroutine(endpoint, data, maxAttempts));
     }
 
-    public void Publish<T>(T message) where T : class
+    private IEnumerator RetryCoroutine(string endpoint, object data, int maxAttempts)
     {
-        if (_handlers.ContainsKey(typeof(T)))
+        int attempt = 0;
+        bool success = false;
+
+        while (attempt < maxAttempts && !success)
         {
-            foreach (var handler in _handlers[typeof(T)])
+            attempt++;
+            Debug.Log($"Attempt {attempt}/{maxAttempts} for {endpoint}");
+
+            // Create a flag to track completion
+            bool completed = false;
+            bool requestSuccess = false;
+
+            AutomationManager.Instance.Connector.ExecuteWebhook(endpoint, data, response => {
+                completed = true;
+                requestSuccess = response.success;
+
+                if (requestSuccess)
+                {
+                    Debug.Log($"✅ Request succeeded on attempt {attempt}");
+                }
+                else
+                {
+                    Debug.LogWarning($"⚠️ Attempt {attempt} failed: {response.errorMessage}");
+                }
+            });
+
+            // Wait for completion
+            yield return new WaitUntil(() => completed);
+
+            if (requestSuccess)
             {
-                handler(message);
+                success = true;
+                break;
+            }
+
+            // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+            if (attempt < maxAttempts)
+            {
+                float delay = Mathf.Pow(2, attempt - 1);
+                Debug.Log($"Waiting {delay}s before retry...");
+                yield return new WaitForSeconds(delay);
             }
         }
+
+        if (!success)
+        {
+            Debug.LogError($"❌ All {maxAttempts} attempts failed for {endpoint}");
+            OnAllRetriesFailed(endpoint, data);
+        }
+    }
+
+    private void OnAllRetriesFailed(string endpoint, object data)
+    {
+        // Queue for later or show error to user
+        Debug.LogError("Request failed permanently - consider queueing");
     }
 }
+```
 
-// Example usage
-public class Player : MonoBehaviour
+### Request Cancellation
+
+Cancel long-running requests:
+```csharp
+public class CancellableRequest : MonoBehaviour
 {
-    void LevelUp()
-    {
-        EventAggregator.Instance.Publish(new PlayerLeveledUpEvent { NewLevel = 5 });
-    }
-}
+    private string currentRequestId;
 
-public class AnalyticsSystem
-{
-    public AnalyticsSystem()
+    public void StartLongRunningRequest()
     {
-        EventAggregator.Instance.Subscribe<PlayerLeveledUpEvent>(OnPlayerLeveledUp);
+        var requestData = new RequestData("long-operation", new {
+            playerId = GetPlayerId(),
+            operation = "heavy-computation"
+        })
+        {
+            timeoutSeconds = 300 // 5 minutes
+        };
+
+        currentRequestId = requestData.id;
+
+        AutomationManager.Instance.Client.SendAsync(requestData, response => {
+            currentRequestId = null;
+
+            if (response.success)
+            {
+                Debug.Log("Long operation completed!");
+            }
+            else if (response.errorType == ErrorType.Cancelled)
+            {
+                Debug.Log("Operation was cancelled by user");
+            }
+            else
+            {
+                Debug.LogError($"Operation failed: {response.errorMessage}");
+            }
+        });
+
+        Debug.Log($"Request started with ID: {currentRequestId}");
     }
 
-    void OnPlayerLeveledUp(PlayerLeveledUpEvent evt)
+    public void CancelCurrentRequest()
     {
-        N8nConnector.Instance.ExecuteWebhook("level-up", evt);
-    }
-}
+        if (string.IsNullOrEmpty(currentRequestId))
+        {
+            Debug.Log("No active request to cancel");
+            return;
+        }
 
-public class PlayerLeveledUpEvent
-{
-    public int NewLevel;
+        bool cancelled = AutomationManager.Instance.Client.CancelRequest(currentRequestId);
+        
+        if (cancelled)
+        {
+            Debug.Log($"Request {currentRequestId} cancelled successfully");
+            currentRequestId = null;
+        }
+        else
+        {
+            Debug.LogWarning($"Could not cancel request {currentRequestId}");
+        }
+    }
+
+    // Cancel all active requests (useful for scene changes)
+    private void OnDestroy()
+    {
+        AutomationManager.Instance.Client.CancelAllRequests();
+    }
 }
 ```
 
 ---
 
-## 11. Debugging and Troubleshooting
+## AI Integration Examples
 
-### 11.1 The Checklist
+### OpenAI/Claude/Gemini via n8n
 
-When a request fails, follow these steps:
+Complete AI chat implementation with streaming support:
+```csharp
+using UnityEngine;
+using System.Collections.Generic;
+using AutomationTool.N8N;
 
-1. **Check the Unity Console**: Look for errors from `[AutomationClient]` or `[N8nConnector]`. Enable verbose logging in your `AutomationConfig` for more details.
+public class AIChat : MonoBehaviour
+{
+    private List<ChatMessage> chatHistory = new List<ChatMessage>();
 
-2. **Check n8n Executions**: Go to your n8n workflow and click the **Executions** tab. Did the workflow run? If it did, click on it and inspect the incoming data in the Webhook node to see what your game actually sent.
+    public void SendMessageToAI(string userMessage)
+    {
+        // Add user message to history
+        chatHistory.Add(new ChatMessage {
+            role = "user",
+            content = userMessage
+        });
 
-3. **Test the URL**: Copy the webhook URL from n8n and try to send a POST request using a tool like Postman or Insomnia. This isolates the problem to either Unity or n8n.
+        // Prepare AI request
+        var request = new {
+            message = userMessage,
+            chatHistory = GetRecentHistory(10), // Last 10 messages
+            systemPrompt = "You are a helpful game assistant",
+            provider = "openai", // or "claude", "gemini"
+            model = "gpt-4",
+            temperature = 0.7f
+        };
 
-4. **Validate AutomationConfig**: Is the Base URL correct? Is the `currentEnvironment` set to the right one?
+        AutomationManager.Instance.Connector.ExecuteWorkflow<AIResponse>(
+            "ai-chat",
+            request,
+            OnAIResponse,
+            timeoutSeconds: 60
+        );
+    }
 
-### 11.2 Common Problems & Solutions
+    private void OnAIResponse(N8nConnector.WorkflowResult<AIResponse> result)
+    {
+        if (!result.success)
+        {
+            Debug.LogError($"AI request failed: {result.error}");
+            return;
+        }
 
-#### Problem: "System not initialized" error
+        var aiResponse = result.data;
+        
+        // Add AI response to history
+        chatHistory.Add(new ChatMessage {
+            role = "assistant",
+            content = aiResponse.response,
+            model = aiResponse.model,
+            tokens = aiResponse.tokens
+        });
 
-**Solution**: You are trying to use `N8nConnector.Instance` before the system is ready. Implement the `WaitForInitializationAndStart` coroutine as shown in section [2.1](#21-basic-setup-the-right-way).
+        Debug.Log($"AI ({aiResponse.model}): {aiResponse.response}");
+        Debug.Log($"Tokens used: {aiResponse.tokens}, Time: {aiResponse.thinking_time}s");
 
-#### Problem: 404 Not Found error
+        // Display in UI
+        DisplayMessage("AI", aiResponse.response);
+    }
 
-**Solution 1**: The webhook path in your C# code (e.g., `"test-connection"`) does not match the **Path** field in your n8n Webhook node.
+    private List<object> GetRecentHistory(int count)
+    {
+        var history = new List<object>();
+        int startIndex = Mathf.Max(0, chatHistory.Count - count);
 
-**Solution 2**: Your n8n workflow is not **Active**. You must save and activate it to listen for requests.
+        for (int i = startIndex; i < chatHistory.Count; i++)
+        {
+            history.Add(new {
+                role = chatHistory[i].role,
+                content = chatHistory[i].content
+            });
+        }
 
-**Solution 3**: The Base URL in your `AutomationConfig` is incorrect (e.g., wrong port, http instead of https).
+        return history;
+    }
+}
 
-#### Problem: "Invalid response format" or data is null in a typed workflow
+[System.Serializable]
+public class ChatMessage
+{
+    public string role; // "user", "assistant", "system"
+    public string content;
+    public string model;
+    public int tokens;
+}
 
-**Solution**: The JSON structure being sent by your n8n workflow does not exactly match the C# class you defined. Compare the JSON output from n8n's final node with your C# class definition. Field names and types must match.
+[System.Serializable]
+public class AIResponse
+{
+    public bool success;
+    public string response;
+    public string model;
+    public int tokens;
+    public float thinking_time;
+}
+```
 
-#### Problem: Request times out
+### Local AI (Ollama/LM Studio)
 
-**Solution 1**: Your n8n workflow is taking too long to execute. Increase the `timeoutSeconds` in the `ExecuteWorkflow` call.
+Use local AI models for offline functionality:
+```csharp
+public class LocalAI : MonoBehaviour
+{
+    [SerializeField] private string localAIEndpoint = "http://localhost:11434"; // Ollama default
 
-**Solution 2**: You have a network issue (firewall, weak connection). Use the `NetworkMonitor` to check the connection status.
+    public void QueryLocalAI(string prompt)
+    {
+        var request = new {
+            prompt = prompt,
+            model = "llama2", // or "mistral", "codellama"
+            stream = false,
+            options = new {
+                temperature = 0.8f,
+                top_p = 0.9f
+            }
+        };
+
+        AutomationManager.Instance.Connector.ExecuteWebhook(
+            "local-ai",
+            request,
+            response => {
+                if (response.success)
+                {
+                    var result = N8nResponseParser.Parse<LocalAIResponse>(response.responseText);
+                    Debug.Log($"Local AI: {result.response}");
+                }
+            }
+        );
+    }
+}
+
+[System.Serializable]
+public class LocalAIResponse
+{
+    public string response;
+    public string model;
+    public long total_duration;
+}
+```
+
+### AI-Powered NPC Dialogue
+
+Generate dynamic NPC conversations:
+```csharp
+public class NPCDialogue : MonoBehaviour
+{
+    [SerializeField] private string npcName;
+    [SerializeField] private string npcPersonality;
+
+    public void GenerateDialogue(string playerQuestion)
+    {
+        var context = new {
+            npcName = npcName,
+            npcPersonality = npcPersonality,
+            playerQuestion = playerQuestion,
+            
+            // Game context
+            gameState = new {
+                currentQuest = QuestManager.Instance.GetCurrentQuest(),
+                playerLevel = PlayerStats.Instance.level,
+                playerReputation = PlayerStats.Instance.reputation,
+                timeOfDay = GameClock.Instance.GetTimeOfDay()
+            }
+        };
+
+        AutomationManager.Instance.Connector.ExecuteWorkflow<NPCDialogueResponse>(
+            "npc-dialogue-generator",
+            context,
+            result => {
+                if (result.success && result.data != null)
+                {
+                    DisplayNPCDialogue(result.data);
+                }
+            }
+        );
+    }
+
+    private void DisplayNPCDialogue(NPCDialogueResponse dialogue)
+    {
+        Debug.Log($"{npcName}: {dialogue.response}");
+        
+        // Show dialogue in UI
+        DialogueUI.Instance.ShowDialogue(npcName, dialogue.response);
+        
+        // Optional: Play voice line if provided
+        if (!string.IsNullOrEmpty(dialogue.voiceLineId))
+        {
+            AudioManager.Instance.PlayVoiceLine(dialogue.voiceLineId);
+        }
+
+        // Optional: Trigger animation
+        if (!string.IsNullOrEmpty(dialogue.animation))
+        {
+            GetComponent<Animator>().SetTrigger(dialogue.animation);
+        }
+    }
+}
+
+[System.Serializable]
+public class NPCDialogueResponse
+{
+    public string response;
+    public string emotion; // "happy", "angry", "sad", etc.
+    public string animation;
+    public string voiceLineId;
+    public bool offersQuest;
+    public string questId;
+}
+```
+
+### AI Content Moderation
+
+Automatically moderate user-generated content:
+```csharp
+public class ContentModerator : MonoBehaviour
+{
+    public void ModerateUserContent(string content, string contentType, System.Action<bool> callback)
+    {
+        var request = new {
+            content = content,
+            contentType = contentType, // "text", "username", "chat"
+            playerId = GetPlayerId(),
+            timestamp = System.DateTime.UtcNow.ToString("o")
+        };
+
+        AutomationManager.Instance.Connector.ExecuteWorkflow<ModerationResult>(
+            "content-moderator",
+            request,
+            result => {
+                if (result.success && result.data != null)
+                {
+                    HandleModerationResult(result.data, callback);
+                }
+                else
+                {
+                    // On error, be conservative and reject
+                    Debug.LogWarning("Moderation failed - rejecting content");
+                    callback?.Invoke(false);
+                }
+            },
+            timeoutSeconds: 30
+        );
+    }
+
+    private void HandleModerationResult(ModerationResult result, System.Action<bool> callback)
+    {
+        Debug.Log($"Moderation: {result.decision} (Confidence: {result.confidence})");
+
+        if (result.decision == "reject")
+        {
+            Debug.LogWarning($"Content rejected: {result.reason}");
+            ShowModerationMessage("Your content was rejected: " + result.reason);
+            callback?.Invoke(false);
+        }
+        else if (result.decision == "flag")
+        {
+            Debug.Log("Content flagged for manual review");
+            // Allow content but flag it
+            callback?.Invoke(true);
+            ReportFlaggedContent(result);
+        }
+        else
+        {
+            // Approved
+            callback?.Invoke(true);
+        }
+    }
+
+    private void ReportFlaggedContent(ModerationResult result)
+    {
+        // Send to moderation queue for human review
+        AutomationManager.Instance.Connector.ExecuteWebhook("flagged-content", result);
+    }
+}
+
+[System.Serializable]
+public class ModerationResult
+{
+    public string decision; // "approve", "reject", "flag"
+    public string reason;
+    public float confidence;
+    public string[] detectedIssues;
+}
+```
 
 ---
+
+## Production Best Practices
+
+### Environment Management
+
+Properly manage different environments:
+```csharp
+public class EnvironmentManager : MonoBehaviour
+{
+    [SerializeField] private AutomationConfig config;
+
+    private void Awake()
+    {
+        // Auto-detect environment based on build
+        #if UNITY_EDITOR
+            config.currentEnvironment = EnvironmentType.Development;
+            Debug.Log("🔧 Running in DEVELOPMENT mode");
+        #elif DEVELOPMENT_BUILD
+            config.currentEnvironment = EnvironmentType.Staging;
+            Debug.Log("🔨 Running in STAGING mode");
+        #else
+            config.currentEnvironment = EnvironmentType.Production;
+            Debug.Log("🚀 Running in PRODUCTION mode");
+        #endif
+
+        // Validate configuration
+        var validation = config.Validate();
+        if (!validation.IsValid)
+        {
+            Debug.LogError($"Configuration errors:\n{validation.GetErrorMessage()}");
+        }
+        if (validation.HasWarnings)
+        {
+            Debug.LogWarning($"Configuration warnings:\n{validation.GetWarningMessage()}");
+        }
+    }
+
+    [ContextMenu("Switch to Development")]
+    private void SwitchToDevelopment()
+    {
+        config.currentEnvironment = EnvironmentType.Development;
+        Debug.Log("Switched to Development environment");
+    }
+
+    [ContextMenu("Switch to Production")]
+    private void SwitchToProduction()
+    {
+        config.currentEnvironment = EnvironmentType.Production;
+        Debug.Log("Switched to Production environment");
+    }
+}
+```
+
+### Error Handling Best Practices
+
+Comprehensive error handling:
+```csharp
+public class RobustErrorHandling : MonoBehaviour
+{
+    public void SendWithProperErrorHandling(string endpoint, object data)
+    {
+        AutomationManager.Instance.Connector.ExecuteWebhook(endpoint, data, response => {
+            if (response.success)
+            {
+                HandleSuccess(response);
+                return;
+            }
+
+            // Categorize and handle errors appropriately
+            switch (response.errorType)
+            {
+                case ErrorType.Network:
+                    HandleNetworkError(response);
+                    break;
+
+                case ErrorType.Timeout:
+                    HandleTimeoutError(response);
+                    break;
+
+                case ErrorType.ServerError:
+                    HandleServerError(response);
+                    break;
+
+                case ErrorType.ClientError:
+                    HandleClientError(response);
+                    break;
+
+                case ErrorType.Cancelled:
+                    HandleCancellation(response);
+                    break;
+
+                default:
+                    HandleUnknownError(response);
+                    break;
+            }
+        });
+    }
+
+    private void HandleSuccess(ResponseData response)
+    {
+        Debug.Log($"✅ Request successful ({response.latencyMs}ms)");
+        // Process successful response
+    }
+
+    private void HandleNetworkError(ResponseData response)
+    {
+        Debug.LogWarning("🌐 Network error - request will be queued");
+        ShowUserMessage("No internet connection. Your action will be synced when online.");
+        // Request is automatically queued by the system
+    }
+
+    private void HandleTimeoutError(ResponseData response)
+    {
+        Debug.LogWarning("⏱️ Request timed out - retrying with longer timeout");
+        // Retry with extended timeout
+    }
+
+    private void HandleServerError(ResponseData response)
+    {
+        Debug.LogError($"🔥 Server error ({response.statusCode}): {response.errorMessage}");
+        
+        if (response.statusCode == 503)
+        {
+            ShowUserMessage("Service temporarily unavailable. Please try again later.");
+        }
+        else if (response.statusCode == 500)
+        {
+            ShowUserMessage("Server error. Our team has been notified.");
+            // Report to error tracking service
+            ReportServerError(response);
+        }
+    }
+
+    private void HandleClientError(ResponseData response)
+    {
+        Debug.LogError($"❌ Client error ({response.statusCode}): {response.errorMessage}");
+        
+        if (response.statusCode == 400)
+        {
+            Debug.LogError("Bad request - check data format");
+        }
+        else if (response.statusCode == 401)
+        {
+            Debug.LogError("Unauthorized - check API key");
+            ShowUserMessage("Authentication error. Please restart the game.");
+        }
+        else if (response.statusCode == 404)
+        {
+            Debug.LogError("Endpoint not found - check webhook path");
+        }
+    }
+
+    private void HandleCancellation(ResponseData response)
+    {
+        Debug.Log("🚫 Request was cancelled");
+    }
+
+    private void HandleUnknownError(ResponseData response)
+    {
+        Debug.LogError($"❓ Unknown error: {response.errorMessage}");
+        ShowUserMessage("An unexpected error occurred. Please try again.");
+    }
+
+    private void ShowUserMessage(string message)
+    {
+        // Display in-game notification
+        Debug.Log($"User message: {message}");
+    }
+
+    private void ReportServerError(ResponseData response)
+    {
+        // Send to error tracking service (Sentry, Rollbar, etc.)
+        Debug.Log("Reporting error to tracking service...");
+    }
+}
+```
+
+### Security Best Practices
+
+Implement proper security measures:
+```csharp
+using AutomationTool.Security;
+
+public class SecurityBestPractices : MonoBehaviour
+{
+    private void Start()
+    {
+        // 1. Always encrypt sensitive data
+        EncryptSensitiveData();
+
+        // 2. Validate webhook signatures
+        ValidateIncomingWebhooks();
+
+        // 3. Obfuscate logs in production
+        ConfigureLogging();
+
+        // 4. Use request signing for critical operations
+        SignCriticalRequests();
+    }
+
+    private void EncryptSensitiveData()
+    {
+        // Store API keys encrypted
+        string apiKey = "your-api-key";
+        string encrypted = SecurityManager.Encrypt(apiKey);
+        PlayerPrefs.SetString("API_Key", encrypted);
+
+        // When reading
+        string storedKey = PlayerPrefs.GetString("API_Key");
+        string decrypted = SecurityManager.Decrypt(storedKey);
+    }
+
+    private void ValidateIncomingWebhooks()
+    {
+        // When receiving webhooks from n8n, validate signature
+        string payload = "{ ... webhook data ... }";
+        string signature = "signature-from-header";
+        string secret = "your-webhook-secret";
+
+        bool isValid = SecurityManager.ValidateSignature(payload, signature, secret);
+        
+        if (!isValid)
+        {
+            Debug.LogError("❌ Invalid webhook signature - possible attack!");
+            return;
+        }
+
+        Debug.Log("✅ Webhook signature valid");
+    }
+
+    private void ConfigureLogging()
+    {
+        // Ensure sensitive data is obfuscated in logs
+        string logMessage = "User email: john@example.com, API Key: sk_test_123456";
+        string safe = SecurityManager.ObfuscateSensitiveData(logMessage);
+        
+        Debug.Log(safe); // Will show: "User email: jo***, API Key: ***"
+    }
+
+    private void SignCriticalRequests()
+    {
+        // For critical operations, sign the request
+        var criticalData = new {
+            operation = "purchase",
+            itemId = "premium_currency",
+            amount = 1000
+        };
+
+        string json = DataSerializer.ToJson(criticalData);
+        string signature = SecurityManager.GenerateSignature(json, "your-secret");
+
+        // Include signature in headers
+        var headers = new Dictionary<string, string> {
+            { "X-Signature", signature },
+            { "X-Signature-Algorithm", "HMAC-SHA256" }
+        };
+
+        var request = new RequestData("purchases", criticalData) {
+            headers = headers
+        };
+
+        AutomationManager.Instance.Client.SendAsync(request);
+    }
+}
+```
+
+### Performance Optimization
+
+Optimize for production:
+```csharp
+public class PerformanceOptimization : MonoBehaviour
+{
+    // 1. Use compression for large payloads
+    public void SendLargeData()
+    {
+        var largeData = new {
+            replay = GetGameReplay(), // Large data
+            analytics = GetDetailedAnalytics()
+        };
+
+        // Compression is automatic if enabled in config
+        // and data > 1KB
+        AutomationManager.Instance.Connector.ExecuteWebhook("large-data", largeData);
+    }
+
+    // 2. Batch small events
+    private List<object> eventBuffer = new List<object>();
+
+    public void BufferEvent(string eventType, object data)
+    {
+        eventBuffer.Add(new { type = eventType, data = data });
+
+        if (eventBuffer.Count >= 20)
+        {
+            FlushEvents();
+        }
+    }
+
+    private void FlushEvents()
+    {
+        if (eventBuffer.Count == 0) return;
+
+        AutomationManager.Instance.Connector.ExecuteWebhook("events-batch", new {
+            events = eventBuffer.ToArray()
+        });
+
+        eventBuffer.Clear();
+    }
+
+    // 3. Use appropriate priorities
+    public void OptimizePriorities()
+    {
+        // Critical: Must succeed immediately
+        SendCritical("player-death", new { reason = "bug" });
+
+        // High: Important but can wait briefly
+        SendHigh("achievement-unlock", new { id = "first_win" });
+
+        // Normal: Standard game events
+        SendNormal("level-complete", new { level = 5 });
+
+        // Low: Analytics, telemetry
+        SendLow("session-metrics", new { duration = 300 });
+    }
+
+    private void SendCritical(string endpoint, object data)
+    {
+        var request = new RequestData(endpoint, data) {
+            priority = RequestPriority.Critical,
+            maxRetries = 10
+        };
+        AutomationManager.Instance.Client.SendAsync(request);
+    }
+
+    private void SendHigh(string endpoint, object data)
+    {
+        var request = new RequestData(endpoint, data) {
+            priority = RequestPriority.High,
+            maxRetries = 5
+        };
+        AutomationManager.Instance.Client.SendAsync(request);
+    }
+
+    private void SendNormal(string endpoint, object data)
+    {
+        AutomationManager.Instance.Connector.ExecuteWebhook(endpoint, data);
+    }
+
+    private void SendLow(string endpoint, object data)
+    {
+        var request = new RequestData(endpoint, data) {
+            priority = RequestPriority.Low,
+            maxRetries = 1
+        };
+        AutomationManager.Instance.Client.SendAsync(request);
+    }
+
+    // 4. Monitor and analyze performance
+    [ContextMenu("Show Performance Stats")]
+    private void ShowPerformanceStats()
+    {
+        var clientStats = AutomationManager.Instance.Client.GetStats();
+        var queueStats = AutomationManager.Instance.Queue.GetStats();
+        var networkStats = AutomationManager.Instance.Monitor.GetStats();
+
+        Debug.Log("=== PERFORMANCE STATS ===");
+        Debug.Log($"Client: {clientStats}");
+        Debug.Log($"Queue: {queueStats}");
+        Debug.Log($"Network: {networkStats}");
+        Debug.Log("========================");
+    }
+}
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+#### Issue 1: "AutomationManager.Instance is NULL"
+
+**Cause**: The `AutomationManager.asset` is not in a `Resources` folder.
+
+**Solution**:
+1. Locate your `AutomationManager.asset` file
+2. Move it to `Assets/Resources/` (or any subfolder of Resources)
+3. Ensure it's named exactly `AutomationManager` (without .asset extension in code)
+```csharp
+// Verify it loads correctly
+var manager = Resources.Load<AutomationManager>("AutomationManager");
+if (manager == null)
+{
+    Debug.LogError("AutomationManager not found in Resources!");
+}
+```
+
+#### Issue 2: "Config is NULL after initialization"
+
+**Cause**: The Config field in `AutomationManager.asset` is not assigned.
+
+**Solution**:
+1. Select `AutomationManager.asset` in Project view
+2. In Inspector, drag your `AutomationConfig` asset to the Config field
+3. Save the asset
+
+#### Issue 3: "Connection refused" or "404 Not Found"
+
+**Cause**: n8n webhook URL is incorrect or n8n is not running.
+
+**Solution**:
+```csharp
+// Verify n8n is running and accessible
+AutomationManager.Instance.Client.TestConnection((success, message) => {
+    if (success)
+    {
+        Debug.Log("✅ Connection OK");
+    }
+    else
+    {
+        Debug.LogError($"❌ Connection failed: {message}");
+        Debug.LogError("Check:");
+        Debug.LogError("1. n8n is running");
+        Debug.LogError("2. Base URL is correct");
+        Debug.LogError("3. Webhook path matches n8n workflow");
+    }
+});
+```
+
+#### Issue 4: "JSON Parsing Failed"
+
+**Cause**: n8n webhook is returning the full execution object instead of just the data.
+
+**Solution**: In n8n, configure the "Respond to Webhook" node:
+```
+Respond Mode: Using 'Respond to Webhook' Node
+Response Data: {{ $json.json }}
+```
+
+This returns only the JSON data, not the wrapped execution object.
+
+#### Issue 5: Requests not being queued when offline
+
+**Cause**: Queue feature is disabled or client is not properly initialized.
+
+**Solution**:
+```csharp
+// Check queue configuration
+var config = AutomationManager.Instance.Client.GetConfig();
+Debug.Log($"Queue enabled: {config.features.enableQueue}");
+Debug.Log($"Max queue size: {config.queueSettings.maxQueueSize}");
+
+// Check queue status
+var queue = AutomationManager.Instance.Queue;
+Debug.Log($"Queue count: {queue.Count}");
+Debug.Log($"Queue initialized: {queue != null}");
+```
+
+#### Issue 6: "System not ready" when calling too early
+
+**Cause**: Accessing services before initialization completes.
+
+**Solution**: Always wait for initialization:
+```csharp
+private IEnumerator Start()
+{
+    // Wait for system ready
+    while (!AutomationManager.Instance.IsReady)
+    {
+        yield return new WaitForSeconds(0.1f);
+    }
+
+    // Now safe to use
+    SendData();
+}
+```
+
+
+
 
 ## 📚 Additional Resources
 
+
+
 - **n8n Documentation**: [https://docs.n8n.io](https://docs.n8n.io)
+
 - **Unity Coroutines Guide**: [Unity Manual - Coroutines](https://docs.unity3d.com/Manual/Coroutines.html)
+
 - **JSON Serialization in Unity**: [Unity Manual - JSON Serialization](https://docs.unity3d.com/Manual/JSONSerialization.html)
 
+
+
 ---
+
+
 
 ## 🤝 Contributing
 
+
+
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+
+
 ---
+
+
 
 ## 💡 Tips for Success
 
+
+
 - **Always wait for initialization** before using any Automation Tool components
+
 - **Use typed responses** for workflows to avoid manual JSON parsing
+
 - **Leverage the offline queue** to ensure no data is lost when users lose connectivity
+
 - **Monitor network conditions** to adapt your data sending strategy
+
 - **Use batch sending** for high-frequency events to reduce network overhead
+
 - **Enable log obfuscation** in production to protect sensitive data
+
 - **Test locally with n8n** before deploying to production servers
 
+
+
 ---
+
+
 
 Made with ❤️ for Unity Developers
