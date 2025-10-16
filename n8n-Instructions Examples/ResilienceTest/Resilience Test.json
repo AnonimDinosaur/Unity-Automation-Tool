@@ -1,0 +1,147 @@
+{
+  "name": "Resilience Test",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "critical-data",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "05961772-4ab1-41da-a437-dbfa75b1c3d7",
+      "name": "Webhook",
+      "webhookId": "7173ecdd-cf51-4720-82e3-29c850541baf"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "1956b46c-0b7a-4e39-8f65-e3ac6da301ba",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "game-event",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "11b814d6-380c-417f-84e8-39f0e05fd67f",
+      "name": "Webhook1",
+      "webhookId": "ef0daa5d-b6b6-4efd-878d-e190a1fbe922"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "5541b0cd-64eb-4fe9-9d33-5b3858bf99df",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analytics",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        832,
+        0
+      ],
+      "id": "ee19129a-d669-4b7a-aa2b-c03eadb40a58",
+      "name": "Webhook2",
+      "webhookId": "3bd0a972-f083-4c91-a476-ceff55266408"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "0368fc24-db84-4eb6-8890-127928f1b508",
+      "name": "Respond to Webhook2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "eca995a7-58ad-43dd-847b-4aa92a73adf6",
+  "meta": {
+    "instanceId": "2eea3cb5b991569f311fed876bd6886b56c01dee707c105d5cc71df3b8a81271"
+  },
+  "id": "7RiYYwYDBN5YYd8r",
+  "tags": []
+}

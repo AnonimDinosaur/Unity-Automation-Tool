@@ -1,0 +1,114 @@
+{
+  "name": "IAExample",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "73d57c00-b299-4fa3-b36a-d6fe9132864f",
+      "name": "Webhook",
+      "webhookId": "9165975c-c300-4e03-91d2-9579074589ea"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $json.body.provider === 'localai' ? 'deepseek-r1:14b' : 'llama2' }}\",\n  \"prompt\": \"{{ $json.body.systemPrompt }}\\n\\nUser: {{ $json.body.message }}\\nAssistant:\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_ctx\": 4096\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "4de60a84-e793-4ef7-8248-f922800461ee",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawOllamaResponse = items[0].json;\n\nconst responseText = rawOllamaResponse.response || '';\nconst evalCount = rawOllamaResponse.eval_count || 0;\nconst totalDuration = rawOllamaResponse.total_duration || 0;\nconst modelName = rawOllamaResponse.model || 'unknown';\n\nreturn [{\n  json: {\n\n    success: true,\n    response: responseText,\n    model: modelName,\n    tokens: evalCount,\n    source: \"local\",\n    thinking_time: totalDuration / 1000000000 // Convert nanoseconds to seconds\n  }\n}];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "46b226c6-8fa1-4190-9f41-d15e2eeff285",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "8ae0597f-bbc1-4d21-9a1a-c07b2d44f595",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2b0df69e-239d-4d58-b4a4-7eaad216bb0f",
+  "meta": {
+    "instanceId": "2eea3cb5b991569f311fed876bd6886b56c01dee707c105d5cc71df3b8a81271"
+  },
+  "id": "29sqicLoRmDm7bFm",
+  "tags": []
+}

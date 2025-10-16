@@ -1,0 +1,268 @@
+{
+  "name": "GameEventsExample",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "game-events",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "05516e59-3c03-4c9a-9198-dd82f0975f06",
+      "name": "Webhook",
+      "webhookId": "19b5b495-274c-4a96-a25d-3e8a08b738d9"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "14b77967-a2be-4eaa-916f-d43a0cad2a84",
+                    "leftValue": "={{ $json.body.eventType }}",
+                    "rightValue": "game_started",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b4a4b644-c559-41f2-b291-d1a6f5f0f0a4",
+                    "leftValue": "={{ $json.body.eventType }}",
+                    "rightValue": "level_up",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "aadace54-4500-47ac-9b38-49fb4458b5cb",
+                    "leftValue": "={{ $json.body.eventType }}",
+                    "rightValue": "item_collected",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "fa79f6d1-2172-4029-8154-838576552ca9",
+                    "leftValue": "={{ $json.body.eventType }}",
+                    "rightValue": "achievement_unlocked",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "59adf287-9d9e-4b90-a3b5-bd43183ff138",
+                    "leftValue": "={{ $json.body.eventType }}",
+                    "rightValue": "game_over",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        848,
+        -48
+      ],
+      "id": "e7d441f6-625b-41a7-b000-88748d404192",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "79c9acc5-c036-4f2e-962b-195cd57c24eb",
+              "name": "data",
+              "value": "=[{{ $now.toISO() }}] - Received Event: {{ JSON.stringify($json.body) }}\\n\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "8bcf70f2-93aa-4e2a-be63-df13bfa1fa3d",
+      "name": "logEntry"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ \"C:\\\\YOUR_FOLDER_ADRESS\\\\log-\" + $now.toFormat('yyyy-MM-dd') + \".txt\" }}",
+        "options": {
+          "append": true
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "f028a09b-2539-4056-a6a5-4c5871253756",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "data",
+        "binaryPropertyName": "=data",
+        "options": {
+          "fileName": "=log-{{ $now.toFormat('yyyy-MM-dd') }}.txt\n"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "1d3332c7-40d4-407a-85c0-e70cdd0b85e3",
+      "name": "Convert to File"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "logEntry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "logEntry": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1f41be95-fd94-42f9-8a88-b876e0ba7277",
+  "meta": {
+    "instanceId": "2eea3cb5b991569f311fed876bd6886b56c01dee707c105d5cc71df3b8a81271"
+  },
+  "id": "3jcFm8jhtkiFMvGS",
+  "tags": []
+}
