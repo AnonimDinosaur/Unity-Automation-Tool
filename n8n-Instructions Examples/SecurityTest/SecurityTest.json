@@ -1,0 +1,85 @@
+{
+  "name": "SecurityTest",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "security-test",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        0,
+        0
+      ],
+      "name": "Webhook",
+      "id": "eae4ee41-dc1c-4d5b-87b6-6976b2a07b97",
+      "typeVersion": 2.1,
+      "webhookId": "2be559dc-8704-4cee-8ac2-38a247da2dae"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════\n// HMAC-SHA256 SIGNATURE VALIDATION\n// ═══════════════════════════════════════════════════════════\n// This code validates the HMAC signature sent by Unity's AutomationTool\n// ⚠️ CRITICAL: SECRET must match exactly the signingSecret in AutomationConfig.asset\n\nconst SECRET = \"MySecureSigningKey_Min32Chars_2025!\"; // ⚠️ MUST MATCH UNITY\n\n// Extract data from webhook\nconst headers = $input.item.json.headers || {};\nconst receivedSignature = headers[\"x-signature\"];\nconst receivedPayload = JSON.stringify($input.item.json.body);\n\n// Validation checks\nif (!receivedSignature) {\n  return {\n    success: false,\n    signatureValid: false,\n    message: \"❌ Missing X-Signature header. Check Unity config: enableRequestSigning must be true.\",\n    receivedSignature: null,\n    expectedSignature: null\n  };\n}\n\nif (!SECRET || SECRET.length < 32) {\n  return {\n    success: false,\n    signatureValid: false,\n    message: \"❌ Server SECRET is invalid (must be 32+ characters).\",\n    receivedSignature: receivedSignature,\n    expectedSignature: null\n  };\n}\n\n// Generate expected signature using Node.js crypto\nconst crypto = require('crypto');\nconst hmac = crypto.createHmac('sha256', SECRET);\nhmac.update(receivedPayload, 'utf8');\nconst expectedSignature = hmac.digest('base64');\n\n// Timing-safe comparison (prevents timing attacks)\nconst isValid = crypto.timingSafeEqual(\n  Buffer.from(receivedSignature),\n  Buffer.from(expectedSignature)\n);\n\n// Return validation result\nif (isValid) {\n  return {\n    success: true,\n    signatureValid: true,\n    message: \"✅ HMAC Signature validated successfully! Data is authentic.\",\n    receivedSignature: receivedSignature.substring(0, 20) + \"...\", // Truncate for security\n    expectedSignature: expectedSignature.substring(0, 20) + \"...\",\n    payload: $input.item.json.body,\n    timestamp: new Date().toISOString()\n  };\n} else {\n  return {\n    success: false,\n    signatureValid: false,\n    message: \"❌ HMAC Signature validation FAILED! Data may have been tampered with.\",\n    receivedSignature: receivedSignature.substring(0, 20) + \"...\",\n    expectedSignature: expectedSignature.substring(0, 20) + \"...\",\n    warning: \"Check if Unity and n8n are using the same SECRET.\"\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "position": [
+        208,
+        0
+      ],
+      "name": "Validate HMAC",
+      "id": "b8525a19-a5e9-4d53-8a79-4a70b3bd9fab",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        400,
+        0
+      ],
+      "name": "Respond to Webhook",
+      "id": "aa0bc3f3-ad51-45d5-8852-418183ba8d9f",
+      "typeVersion": 1.4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate HMAC": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f8580d71-1cf2-4e3b-89f5-7e4543b0fedd",
+  "meta": {
+    "instanceId": "2eea3cb5b991569f311fed876bd6886b56c01dee707c105d5cc71df3b8a81271"
+  },
+  "id": "uRzV1dRiq2UhooLa",
+  "tags": []
+}
