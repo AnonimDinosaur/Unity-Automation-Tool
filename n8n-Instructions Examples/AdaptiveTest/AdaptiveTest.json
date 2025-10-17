@@ -1,0 +1,61 @@
+{
+  "name": "AdaptiveTest",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "adaptive-test",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        0,
+        0
+      ],
+      "name": "Webhook",
+      "id": "e0497efe-36c4-492b-9c9a-3ef55a15532e",
+      "typeVersion": 2.1,
+      "webhookId": "37e1f033-bd11-445f-af1f-33ea1739a064"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Data received', receivedSize: $json.body.originalSize, compressed: $json.body.compressed, networkType: $json.body.networkType, timestamp: $now.toISO() } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        208,
+        0
+      ],
+      "name": "Respond to Webhook",
+      "id": "216f026e-7e72-41eb-b7ae-d4a01cc741c0",
+      "typeVersion": 1.4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "87f6e62b-0dbf-4f18-b9e7-8f2bdadad59b",
+  "meta": {
+    "instanceId": "2eea3cb5b991569f311fed876bd6886b56c01dee707c105d5cc71df3b8a81271"
+  },
+  "id": "Skj7sn30dqhMUYBw",
+  "tags": []
+}
