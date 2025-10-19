@@ -9,13 +9,13 @@
 1. [What Makes This Different](#what-makes-this-different)
 2. [Architecture Overview](#architecture-overview)
 3. [Quick Start Guide](#quick-start-guide)
-4. [Core Features Deep Dive](#core-features-deep-dive)
-5. [Real-World Use Cases](#real-world-use-cases)
-6. [Advanced Patterns](#advanced-patterns)
-7. [AI Integration Examples](#ai-integration-examples)
-8. [Production Best Practices](#production-best-practices)
-9. [Troubleshooting](#troubleshooting)
-10. [API Reference](#api-reference)
+4. [Configuration Deep Dive](#configuration-deep-dive)
+5. [Core Features Deep Dive](#core-features-deep-dive)
+6. [Real-World Use Cases](#real-world-use-cases)
+7. [Advanced Patterns](#advanced-patterns)
+8. [AI Integration Examples](#ai-integration-examples)
+9. [Production Best Practices](#production-best-practices)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -232,6 +232,430 @@ Webhook Node Settings:
 ```
 
 That's it. Your game is now connected to n8n.
+
+---
+
+## Configuration Deep Dive
+
+### AutomationConfig.asset - Complete Settings Reference
+
+The AutomationConfig.asset is the heart of the system. Here's every setting explained:
+
+#### Environment Settings
+
+**Current Environment (currentEnvironment)**
+
+Purpose: Determines which environment configuration to use
+Options: Development, Staging, Production
+Best Practice:
+- Development: Local n8n instance for testing
+- Staging: Cloud n8n instance for QA
+- Production: Production n8n instance
+
+Auto-Detection: Can be automated based on build type (see Production Best Practices)
+
+**Environments List**
+
+Each environment contains:
+
+**Base Configuration**
+
+- **Environment Type**: Development / Staging / Production
+- **Base URL**: The root URL of your n8n instance
+  - Development: `http://localhost:5678`
+  - Staging: `https://staging-n8n.yourcompany.com`
+  - Production: `https://n8n.yourcompany.com`
+
+- **API Key**: Optional authentication token
+  - Leave empty for webhooks without auth
+  - Use for secured endpoints: `sk_test_1234567890_example_key`
+  - Will be encrypted if Encrypt API Keys is enabled
+
+- **Timeout Seconds**: Maximum time to wait for response (default: 30)
+  - Adjust based on workflow complexity
+  - Recommendation: 30s for webhooks, 60-120s for workflows with Wait nodes
+
+- **Max Retries**: Number of retry attempts before giving up (default: 3)
+  - Critical operations: 5-10 retries
+  - Normal operations: 3 retries
+  - Analytics: 1 retry (or 0)
+
+**Custom Headers**
+
+Add custom HTTP headers to all requests in this environment:
+- **Key**: Header name (e.g., "X-Custom-Auth", "X-Game-Version")
+- **Value**: Header value
+- **Use Cases**:
+  - Custom authentication schemes
+  - Version tracking
+  - A/B testing flags
+  - Region identifiers
+
+**Platform Type**
+
+- **n8n**: Default, uses n8n-specific URL patterns
+  - Webhooks: `/webhook/{path}`
+  - Workflows: `/api/v1/workflows/{id}`
+
+- **Zapier**: Automatically formats URLs for Zapier webhooks
+- **Make**: Formats URLs for Make (Integromat)
+- **Custom**: No automatic URL formatting
+
+#### Security Settings
+
+**Encrypt API Keys (encryptApiKeys)**
+
+- Default: ✅ Enabled
+- What it does: Encrypts API keys using AES-256 before storing in PlayerPrefs
+- Recommendation: ALWAYS enable in production
+- How it works: Uses device-specific key + PBKDF2 for encryption
+- Note: Keys are decrypted automatically when needed
+
+**Enable Request Signing (enableRequestSigning)**
+
+- Default: ❌ Disabled
+- What it does: Signs all requests with HMAC-SHA256 signature
+- When to enable: For critical operations requiring verification
+- Headers added:
+  - `X-Signature`: The HMAC signature
+  - `X-Signature-Algorithm`: "HMAC-SHA256"
+
+- n8n Setup Required: Configure signature validation in n8n workflow
+- Performance impact: Minimal (microseconds per request)
+
+**Signing Secret (signingSecret)**
+
+- Required when: Request signing is enabled
+- Format: Any string, minimum 32 characters recommended
+- Best Practice: Use cryptographically random string
+- Generation: Use `SecurityManager.GenerateRandomKey(32)`
+- Example: `MySecureSigningKey_Min32Chars_2025!`
+- Storage: Store securely, never commit to version control
+- Rotation: Change periodically for security
+
+**Validate SSL Certificates (validateSslCertificates)**
+
+- Default: ✅ Enabled
+- What it does: Verifies SSL/TLS certificates for HTTPS connections
+- When to disable: Only for local testing with self-signed certificates
+- CRITICAL: NEVER disable in production - major security risk
+- Mobile: Required by App Store and Google Play policies
+
+**Obfuscate Sensitive Data (obfuscateSensitiveData)**
+
+- Default: ✅ Enabled
+- What it does: Automatically redacts sensitive data in logs
+- Protects:
+  - API keys: `api_key: "***"`
+  - Tokens: `token: "***"`
+  - Passwords: `password: "***"`
+  - Authorization headers: `Bearer ***`
+  - Email addresses: `jo***@example.com`
+
+- Performance: Negligible impact
+- Recommendation: Always enable
+
+#### Logging Settings
+
+**Enable Logging (enableLogging)**
+
+- Default: ✅ Enabled
+- What it does: Controls all debug logging from the system
+- Disable when: Building final release build for performance
+- Note: Critical errors are always logged regardless of this setting
+
+**Log Level (logLevel)**
+
+- **None**: No logging (not recommended)
+- **Error**: Only errors (critical issues)
+- **Warning**: Errors + warnings (potential issues)
+- **Info**: Errors + warnings + general info (default, recommended)
+- **Debug**: All above + detailed execution flow
+- **Verbose**: Everything including raw request/response data
+- Recommendation:
+  - Development: Debug or Verbose
+  - Production: Info or Warning
+
+**Log Requests (logRequests)**
+
+- Default: ✅ Enabled
+- What it does: Logs when requests are sent
+- Output Example:
+```
+[RequestBuilder] Building request:
+  URL: http://localhost:5678/webhook/test
+  Method: POST
+  Timeout: 30s
+```
+- Disable when: Too many requests causing log spam
+
+**Log Responses (logResponses)**
+
+- Default: ✅ Enabled
+- What it does: Logs when responses are received
+- Output Example:
+```
+[AutomationClient] Response received for request_123: 200 (45ms)
+```
+
+**Log Bodies (logBodies)**
+
+- Default: ❌ Disabled
+- What it does: Logs full request/response body content
+- Enable when: Debugging data serialization issues
+- Warning: Can expose sensitive data if obfuscation fails
+- Output Example:
+```
+[AutomationClient] Response body: {"success": true, "data": {...}}
+```
+
+**Max Body Log Length (maxBodyLogLength)**
+
+- Default: 500 characters
+- What it does: Truncates long request/response bodies in logs
+- Purpose: Prevents log overflow with large payloads
+- Recommendation: 500-1000 for development, 100-200 for production
+
+#### Retry Policy
+
+**Use Exponential Backoff (useExponentialBackoff)**
+
+- Default: ✅ Enabled
+- What it does: Increases delay between retries exponentially
+- Formula: `delay = initialDelay * (multiplier ^ retryCount)`
+- Example: 1s, 2s, 4s, 8s, 16s
+- Why: Prevents overwhelming the server during issues
+- Disable when: You need fixed retry intervals
+
+**Initial Delay Seconds (initialDelaySeconds)**
+
+- Default: 1.0 seconds
+- What it does: Starting delay before first retry
+- Range: 0.1 - 10 seconds
+- Recommendation:
+  - Fast operations: 0.5s
+  - Normal operations: 1s
+  - Slow operations: 2s
+
+**Max Delay Seconds (maxDelaySeconds)**
+
+- Default: 30 seconds
+- What it does: Maximum delay cap for exponential backoff
+- Why: Prevents excessively long waits
+- Recommendation: 30-60 seconds
+
+**Backoff Multiplier (backoffMultiplier)**
+
+- Default: 2.0
+- What it does: Multiplier for exponential growth
+- Formula: `Next delay = Current delay × Multiplier`
+- Examples:
+  - 2.0: 1s, 2s, 4s, 8s (aggressive)
+  - 1.5: 1s, 1.5s, 2.25s, 3.38s (moderate)
+  - 1.2: 1s, 1.2s, 1.44s, 1.73s (gentle)
+
+**Use Jitter (useJitter)**
+
+- Default: ✅ Enabled
+- What it does: Adds random ±25% variation to retry delays
+- Why: Prevents "thundering herd" problem (many clients retrying simultaneously)
+- Example: 2s delay becomes 1.5s - 2.5s
+- Recommendation: Always enable for multi-user games
+
+#### Queue Settings
+
+**Max Queue Size (maxQueueSize)**
+
+- Default: 100 requests
+- What it does: Maximum number of requests that can be queued
+- When full: Applies overflow policy
+- Sizing Guide:
+  - Casual games: 50-100
+  - Action games: 200-500
+  - MMO/Social: 500-1000
+
+- Memory impact: ~1KB per queued request
+
+**Overflow Policy (overflowPolicy)**
+
+- **Drop Oldest**: Remove oldest request to make space
+  - Best for: Time-sensitive data where recent is more important
+  - Example: Player position updates
+
+- **Drop Newest**: Reject new incoming request
+  - Best for: Historical data where older matters
+  - Example: Achievement unlocks
+
+- **Drop Lowest Priority**: Remove lowest priority request first
+  - Best for: Mixed priority workloads
+  - Example: Games with critical + analytics events
+
+**Auto Flush On Connection (autoFlushOnConnection)**
+
+- Default: ✅ Enabled
+- What it does: Automatically sends queued requests when connection restores
+- Why: Seamless offline → online transition
+- Disable when: You want manual control over queue flushing
+- Event: Triggers `OnQueueFlushed` event
+
+**Persist Queue (persistQueue)**
+
+- Default: ✅ Enabled
+- What it does: Saves queue to disk (PlayerPrefs)
+- Benefits: Survives app restarts, crashes
+- Storage: Encrypted + optionally compressed
+- When to disable: Privacy concerns or storage constraints
+- Cleanup: Automatic on successful send
+
+**Max Queue Age Hours (maxQueueAgeHours)**
+
+- Default: 24 hours
+- What it does: Drops requests older than X hours
+- Set to 0: No age limit
+- Why: Prevents sending stale data (e.g., "player online" from yesterday)
+- Recommendation:
+  - Session data: 1-2 hours
+  - Game events: 24 hours
+  - Analytics: 48-72 hours
+
+#### Feature Flags
+
+These toggles enable/disable major system features:
+
+**Enable Queue (enableQueue)**
+
+- Default: ✅ Enabled
+- What it does: Activates offline request queue system
+- Disable when: Online-only game with no offline support needed
+- Impact:
+  - ✅ Enabled: Failed requests automatically queued
+  - ❌ Disabled: Failed requests are lost
+
+**Enable Compression (enableCompression)**
+
+- Default: ✅ Enabled
+- What it does: Automatically compresses data > 1KB using GZIP
+- Benefits:
+  - Reduces bandwidth (50-80% smaller)
+  - Faster on mobile networks
+
+- Overhead: Minimal CPU (~5ms for 1MB)
+- Header: Adds `Content-Encoding: gzip`
+- Disable when: Server doesn't support GZIP
+
+**Enable Metrics (enableMetrics)**
+
+- Default: ✅ Enabled
+- What it does: Tracks performance statistics
+- Collects:
+  - Request count (total, success, failed)
+  - Average latency
+  - Peak queue size
+  - Error distribution
+
+- Access via: `Client.GetStats()`, `Queue.GetStats()`
+- Overhead: Negligible
+- Disable when: Privacy regulations prohibit
+
+**Enable Network Monitor (enableNetworkMonitor)**
+
+- Default: ✅ Enabled
+- What it does: Tracks network type, latency, battery
+- Features:
+  - WiFi/Cellular detection
+  - Real-time latency measurement
+  - Battery level monitoring (mobile)
+  - Connection events
+
+- Disable when: Not needed for desktop-only games
+- Mobile: Highly recommended
+
+**Enable Cancellation (enableCancellation)**
+
+- Default: ✅ Enabled
+- What it does: Allows cancelling in-flight requests
+- Use cases:
+  - User navigates away from screen
+  - Scene changes
+  - Timeout override
+
+- Methods:
+  - `CancelRequest(requestId)`
+  - `CancelAllRequests()`
+
+#### Configuration Best Practices
+
+**Development Environment Setup**
+```
+Base URL: http://localhost:5678
+Timeout: 30s
+Max Retries: 3
+Log Level: Debug or Verbose
+Enable All Features: ✅
+Validate SSL: ❌ (if using self-signed cert)
+```
+
+**Staging Environment Setup**
+```
+Base URL: https://staging-n8n.yourcompany.com
+Timeout: 30s
+Max Retries: 5
+Log Level: Info
+Enable All Features: ✅
+Validate SSL: ✅
+Encrypt API Keys: ✅
+```
+
+**Production Environment Setup**
+```
+Base URL: https://n8n.yourcompany.com
+Timeout: 30s
+Max Retries: 5
+Log Level: Warning
+Enable Logging: ✅ (but minimal)
+Log Bodies: ❌
+Validate SSL: ✅ (CRITICAL)
+Encrypt API Keys: ✅ (CRITICAL)
+Obfuscate Sensitive Data: ✅ (CRITICAL)
+Enable Request Signing: ✅ (for critical operations)
+```
+
+**Quick Reference: When to Change Settings**
+
+- **Increase Timeout when**:
+  - Workflows take longer than 30s (AI generation, complex processing)
+  - Network is consistently slow
+  - Using Wait nodes in n8n
+
+- **Increase Max Retries when**:
+  - Data is critical and cannot be lost
+  - Network is unstable
+  - Server has intermittent issues
+
+- **Decrease Max Retries when**:
+  - Data is non-critical (analytics, telemetry)
+  - Fast failure is preferred over long waits
+
+- **Enable Request Signing when**:
+  - Handling purchases or payments
+  - Processing sensitive player data
+  - Need proof of request authenticity
+  - Compliance requirements (GDPR, CCPA)
+
+- **Disable Compression when**:
+  - Data is already compressed (images, videos)
+  - Server doesn't support GZIP
+  - CPU constraints on low-end devices
+
+- **Increase Queue Size when**:
+  - Game generates many events
+  - Long offline sessions expected
+  - Complex multiplayer synchronization
+
+- **Decrease Queue Size when**:
+  - Memory constraints on mobile
+  - Data freshness is critical
+  - Queue is rarely used
 
 ---
 
@@ -636,6 +1060,9 @@ public class QueueMonitor : MonoBehaviour
         };
 
         // Check current queue status
+(Continuació)
+
+```csharp
         if (queue.Count > 0)
         {
             Debug.Log($"Found {queue.Count} pending requests from previous session");
@@ -1073,6 +1500,7 @@ public class RateLimiter : MonoBehaviour
 ### Async/Await Pattern with Tasks
 
 Modern asynchronous programming:
+
 ```csharp
 using System.Threading.Tasks;
 
@@ -1216,6 +1644,7 @@ public class ContentData
 ### Retry with Exponential Backoff
 
 Custom retry logic for critical operations:
+
 ```csharp
 using System.Collections;
 
@@ -1290,6 +1719,7 @@ public class RetryHandler : MonoBehaviour
 ### Request Cancellation
 
 Cancel long-running requests:
+
 ```csharp
 public class CancellableRequest : MonoBehaviour
 {
@@ -1363,6 +1793,7 @@ public class CancellableRequest : MonoBehaviour
 ### OpenAI/Claude/Gemini via n8n
 
 Complete AI chat implementation with streaming support:
+
 ```csharp
 using UnityEngine;
 using System.Collections.Generic;
@@ -1463,6 +1894,7 @@ public class AIResponse
 ### Local AI (Ollama/LM Studio)
 
 Use local AI models for offline functionality:
+
 ```csharp
 public class LocalAI : MonoBehaviour
 {
@@ -1506,6 +1938,7 @@ public class LocalAIResponse
 ### AI-Powered NPC Dialogue
 
 Generate dynamic NPC conversations:
+
 ```csharp
 public class NPCDialogue : MonoBehaviour
 {
@@ -1576,6 +2009,7 @@ public class NPCDialogueResponse
 ### AI Content Moderation
 
 Automatically moderate user-generated content:
+
 ```csharp
 public class ContentModerator : MonoBehaviour
 {
@@ -1655,6 +2089,7 @@ public class ModerationResult
 ### Environment Management
 
 Properly manage different environments:
+
 ```csharp
 public class EnvironmentManager : MonoBehaviour
 {
@@ -1705,6 +2140,7 @@ public class EnvironmentManager : MonoBehaviour
 ### Error Handling Best Practices
 
 Comprehensive error handling:
+
 ```csharp
 public class RobustErrorHandling : MonoBehaviour
 {
@@ -1829,6 +2265,7 @@ public class RobustErrorHandling : MonoBehaviour
 ### Security Best Practices
 
 Implement proper security measures:
+
 ```csharp
 using AutomationTool.Security;
 
@@ -1918,6 +2355,7 @@ public class SecurityBestPractices : MonoBehaviour
 ### Performance Optimization
 
 Optimize for production:
+
 ```csharp
 public class PerformanceOptimization : MonoBehaviour
 {
@@ -2037,6 +2475,7 @@ public class PerformanceOptimization : MonoBehaviour
 1. Locate your `AutomationManager.asset` file
 2. Move it to `Assets/Resources/` (or any subfolder of Resources)
 3. Ensure it's named exactly `AutomationManager` (without .asset extension in code)
+
 ```csharp
 // Verify it loads correctly
 var manager = Resources.Load<AutomationManager>("AutomationManager");
@@ -2126,59 +2565,144 @@ private IEnumerator Start()
 }
 ```
 
+#### Issue 7: High memory usage or crashes with large queues
 
+**Cause**: Queue size configured too large or requests accumulating without flushing.
 
+**Solution**:
+```csharp
+// Monitor queue size
+if (AutomationManager.Instance.Queue.Count > 50)
+{
+    Debug.LogWarning("Queue is getting large - consider flushing");
+    AutomationManager.Instance.Queue.FlushQueue();
+}
+
+// Adjust configuration
+// Reduce maxQueueSize in AutomationConfig
+// Enable autoFlushOnConnection
+// Increase flushInterval
+```
+
+#### Issue 8: Responses not being parsed correctly
+
+**Cause**: Response format doesn't match expected structure.
+
+**Solution**:
+```csharp
+// Debug response structure
+AutomationManager.Instance.Connector.ExecuteWebhook("test", new { data = "test" }, response => {
+    if (response.success)
+    {
+        Debug.Log("Raw response: " + response.responseText);
+        Debug.Log("Response length: " + response.responseText.Length);
+        
+        // Try parsing manually
+        try
+        {
+            var parsed = JsonUtility.FromJson<YourClass>(response.responseText);
+            Debug.Log("Parsed successfully");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError("Parse error: " + ex.Message);
+        }
+    }
+});
+```
+
+#### Issue 9: API calls timing out frequently
+
+**Cause**: Timeout value too short for network conditions or workflow complexity.
+
+**Solution**:
+```csharp
+// Increase timeout for specific requests
+var request = new RequestData("slow-workflow", data)
+{
+    timeoutSeconds = 120 // Increase from default 30
+};
+
+// Or update in AutomationConfig for all requests
+// Adjust based on network monitoring
+var monitor = AutomationManager.Instance.Monitor;
+if (monitor.CurrentNetworkType == NetworkType.Cellular)
+{
+    // Increase timeout for cellular
+    request.timeoutSeconds = 60;
+}
+```
+
+#### Issue 10: Data corruption in queue storage
+
+**Cause**: Queue persistence may have issues with certain data types.
+
+**Solution**:
+```csharp
+// Clear corrupted queue
+var queue = AutomationManager.Instance.Queue;
+queue.Clear();
+Debug.Log("Queue cleared");
+
+// Disable persistence temporarily
+// In AutomationConfig: persistQueue = false
+// Re-enable after manual testing
+
+// Or use this to diagnose
+var stats = queue.GetStats();
+Debug.Log($"Queue stats: {stats}");
+```
+
+---
 
 ## 📚 Additional Resources
 
-
-
 - **n8n Documentation**: [https://docs.n8n.io](https://docs.n8n.io)
-
 - **Unity Coroutines Guide**: [Unity Manual - Coroutines](https://docs.unity3d.com/Manual/Coroutines.html)
-
 - **JSON Serialization in Unity**: [Unity Manual - JSON Serialization](https://docs.unity3d.com/Manual/JSONSerialization.html)
 
-
-
 ---
-
-
 
 ## 🤝 Contributing
 
-
-
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-
-
 ---
-
-
 
 ## 💡 Tips for Success
 
-
-
 - **Always wait for initialization** before using any Automation Tool components
-
 - **Use typed responses** for workflows to avoid manual JSON parsing
-
 - **Leverage the offline queue** to ensure no data is lost when users lose connectivity
-
 - **Monitor network conditions** to adapt your data sending strategy
-
 - **Use batch sending** for high-frequency events to reduce network overhead
-
 - **Enable log obfuscation** in production to protect sensitive data
-
 - **Test locally with n8n** before deploying to production servers
-
-
+- **Validate your configurations** in each environment before deployment
+- **Use priority levels** appropriately to manage critical vs non-critical data
+- **Monitor performance metrics** regularly to optimize settings
 
 ---
 
+## License and Rights
 
+© 2025 [Roluplay]. All rights reserved.
+
+By purchasing and/or downloading this asset ("Asset") from the Unity Asset Store, you are granted a standard, non-exclusive, worldwide, and perpetual license to use the Asset in accordance with the Unity Asset Store End User License Agreement (EULA).
+
+**Under this license, you are permitted to:**
+
+* Use the Asset for the purpose of developing and publishing electronic games and interactive media ("Creations").
+* Incorporate the Asset into your Creations, including for commercial use.
+* Modify the Asset for the purpose of incorporating it into your Creations.
+
+**Under this license, you are NOT permitted to:**
+
+* Resell, redistribute, sublicense, or transfer the Asset or any modified versions thereof, whether as standalone files or as part of any other asset collection, package, or product.
+* Use the Asset in any way that violates the Unity Asset Store EULA.
+
+For the full license terms, please refer to the [Unity Asset Store EULA](https://unity.com/legal/as-terms).
+
+---
 
 Made with ❤️ for Unity Developers
